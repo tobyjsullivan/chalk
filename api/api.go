@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	TypeString = "string"
-	TypeNumber = "number"
+	TypeString      = "string"
+	TypeNumber      = "number"
 	TypeApplication = "application"
 )
 
@@ -20,25 +20,25 @@ type QueryRequest struct {
 }
 
 type Application struct {
-	FunctionName string `json:"function"`
-	Arguments []*Argument `json:"arguments"`
+	FunctionName string      `json:"function"`
+	Arguments    []*Argument `json:"arguments"`
 }
 
 type Argument struct {
-	Type string `json:"type"`
-	StringValue string `json:"stringValue"`
-	NumberValue float64 `json:"numberValue"`
+	Type             string       `json:"type"`
+	StringValue      string       `json:"stringValue"`
+	NumberValue      float64      `json:"numberValue"`
 	ApplicationValue *Application `json:"applicationValue"`
 }
 
 type QueryResult struct {
 	Result *ResultObject `json:"result"`
-	Error string `json:"error"`
+	Error  string        `json:"error"`
 }
 
 type ResultObject struct {
-	Type string `json:"type"`
-	StringValue string `json:"stringValue,omit-empty"`
+	Type        string  `json:"type"`
+	StringValue string  `json:"stringValue,omit-empty"`
 	NumberValue float64 `json:"numberValue,omit-empty"`
 }
 
@@ -69,22 +69,22 @@ func toApplication(app *Application) (*functions.Application, error) {
 	}
 
 	return &functions.Application{
-		Function: f,
+		Function:  f,
 		Arguments: args,
 	}, nil
 }
 
-func toResult(res types.Object) (*QueryResult) {
+func toResult(res types.Object) *QueryResult {
 	var obj *ResultObject
 	switch e := res.(type) {
 	case *types.Number:
 		obj = &ResultObject{
-			Type: TypeNumber,
+			Type:        TypeNumber,
 			NumberValue: e.Raw(),
 		}
 	case *types.String:
 		obj = &ResultObject{
-			Type: TypeString,
+			Type:        TypeString,
 			StringValue: e.Raw(),
 		}
 	}
@@ -94,7 +94,7 @@ func toResult(res types.Object) (*QueryResult) {
 	}
 }
 
-func toErrorResult(err error) (*QueryResult) {
+func toErrorResult(err error) *QueryResult {
 	return &QueryResult{
 		Error: fmt.Sprint(err),
 	}

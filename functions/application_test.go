@@ -14,7 +14,7 @@ func TestApplication_Resolve(t *testing.T) {
 			return types.NewNumber(a.Raw() + b.Raw()), nil
 		},
 		Parameters: []types.Type{types.TNumber, types.TNumber},
-		Returns: types.TNumber,
+		Returns:    types.TNumber,
 	}
 
 	app := &Application{
