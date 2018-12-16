@@ -4,12 +4,15 @@ import "testing"
 
 func TestQuery(t *testing.T) {
 	req := &QueryRequest{
-		Application: &Application{
-			FunctionName: "SUM",
-			Arguments: []*Argument{
-				{Type: TypeNumber, NumberValue: 1.0},
-				{Type: TypeNumber, NumberValue: 2.0},
-				{Type: TypeNumber, NumberValue: 3.0},
+		Formula: &Object{
+			Type: TypeApplication,
+			ApplicationValue: &Application{
+				FunctionName: "SUM",
+				Arguments: []*Object{
+					{Type: TypeNumber, NumberValue: 1.0},
+					{Type: TypeNumber, NumberValue: 2.0},
+					{Type: TypeNumber, NumberValue: 3.0},
+				},
 			},
 		},
 	}
@@ -17,7 +20,7 @@ func TestQuery(t *testing.T) {
 	res := Query(req)
 
 	if res.Error != "" {
-		t.Errorf("Unexpected error response: %s", res.Error)
+		t.Fatalf("Unexpected error response: %s", res.Error)
 	}
 
 	if res.Result.Type != TypeNumber {
@@ -32,18 +35,21 @@ func TestQuery(t *testing.T) {
 func TestQueryNested(t *testing.T) {
 	innerApp := &Application{
 		FunctionName: "CONCATENATE",
-		Arguments: []*Argument{
+		Arguments: []*Object{
 			{Type: TypeString, StringValue: "World"},
 			{Type: TypeString, StringValue: "!"},
 		},
 	}
 
 	req := &QueryRequest{
-		Application: &Application{
-			FunctionName: "CONCATENATE",
-			Arguments: []*Argument{
-				{Type: TypeString, StringValue: "Hello, "},
-				{Type: TypeApplication, ApplicationValue: innerApp},
+		Formula: &Object{
+			Type: TypeApplication,
+			ApplicationValue: &Application{
+				FunctionName: "CONCATENATE",
+				Arguments: []*Object{
+					{Type: TypeString, StringValue: "Hello, "},
+					{Type: TypeApplication, ApplicationValue: innerApp},
+				},
 			},
 		},
 	}
@@ -51,7 +57,7 @@ func TestQueryNested(t *testing.T) {
 	res := Query(req)
 
 	if res.Error != "" {
-		t.Errorf("Unexpected error response: %s", res.Error)
+		t.Fatalf("Unexpected error response: %s", res.Error)
 	}
 
 	if res.Result.Type != TypeString {

@@ -16,15 +16,15 @@ const (
 )
 
 type QueryRequest struct {
-	Application *Application `json:"application"`
+	Formula *Object `json:"formula"`
 }
 
 type Application struct {
-	FunctionName string      `json:"function"`
-	Arguments    []*Argument `json:"arguments"`
+	FunctionName string    `json:"function"`
+	Arguments    []*Object `json:"arguments"`
 }
 
-type Argument struct {
+type Object struct {
 	Type             string       `json:"type"`
 	StringValue      string       `json:"stringValue"`
 	NumberValue      float64      `json:"numberValue"`
@@ -32,26 +32,48 @@ type Argument struct {
 }
 
 type QueryResult struct {
-	Result *ResultObject `json:"result"`
-	Error  string        `json:"error"`
-}
-
-type ResultObject struct {
-	Type        string  `json:"type"`
-	StringValue string  `json:"stringValue,omit-empty"`
-	NumberValue float64 `json:"numberValue,omit-empty"`
+	Result *Object `json:"result"`
+	Error  string  `json:"error"`
 }
 
 func Query(request *QueryRequest) *QueryResult {
-	app, err := toApplication(request.Application)
-	if err != nil {
-		return toErrorResult(err)
-	}
-	result, err := app.Resolve()
+	result, err := resolve(request.Formula)
 	if err != nil {
 		return toErrorResult(err)
 	}
 	return toResult(result)
+}
+
+func isScalar(formula *Object) (bool, error) {
+	switch formula.Type {
+	case TypeApplication:
+		return false, nil
+	case TypeNumber:
+		return true, nil
+	case TypeString:
+		return true, nil
+	default:
+		return false, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type))
+	}
+}
+
+func resolve(formula *Object) (*Object, error) {
+	if isScalar, err := isScalar(formula); err != nil {
+		return nil, err
+	} else if isScalar {
+		return formula, nil
+	}
+
+	app, err := toApplication(formula.ApplicationValue)
+	if err != nil {
+		return nil, err
+	}
+	result, err := app.Resolve()
+	if err != nil {
+		return nil, err
+	}
+
+	return fromFuncObject(result)
 }
 
 func toApplication(app *Application) (*functions.Application, error) {
@@ -74,23 +96,29 @@ func toApplication(app *Application) (*functions.Application, error) {
 	}, nil
 }
 
-func toResult(res types.Object) *QueryResult {
-	var obj *ResultObject
-	switch e := res.(type) {
+func fromFuncObject(input types.Object) (*Object, error) {
+	var output *Object
+	switch e := input.(type) {
 	case *types.Number:
-		obj = &ResultObject{
+		output = &Object{
 			Type:        TypeNumber,
 			NumberValue: e.Raw(),
 		}
 	case *types.String:
-		obj = &ResultObject{
+		output = &Object{
 			Type:        TypeString,
 			StringValue: e.Raw(),
 		}
+	default:
+		return nil, errors.New(fmt.Sprintf("unrecognized object type %v", input))
 	}
 
+	return output, nil
+}
+
+func toResult(res *Object) *QueryResult {
 	return &QueryResult{
-		Result: obj,
+		Result: res,
 	}
 }
 
@@ -111,7 +139,7 @@ func findFunction(funcName string) (*functions.Function, error) {
 	}
 }
 
-func toArgument(arg *Argument) (functions.Argument, error) {
+func toArgument(arg *Object) (functions.Argument, error) {
 	switch arg.Type {
 	case TypeApplication:
 		app, err := toApplication(arg.ApplicationValue)
