@@ -26,14 +26,14 @@ type Application struct {
 
 type Object struct {
 	Type             string       `json:"type"`
-	StringValue      string       `json:"stringValue"`
-	NumberValue      float64      `json:"numberValue"`
-	ApplicationValue *Application `json:"applicationValue"`
+	StringValue      string       `json:"stringValue,omitempty"`
+	NumberValue      float64      `json:"numberValue,omitempty"`
+	ApplicationValue *Application `json:"applicationValue,omitempty"`
 }
 
 type QueryResult struct {
-	Result *Object `json:"result"`
-	Error  string  `json:"error"`
+	Result *Object `json:"result,omitempty"`
+	Error  string  `json:"error,omitempty"`
 }
 
 func Query(request *QueryRequest) *QueryResult {
