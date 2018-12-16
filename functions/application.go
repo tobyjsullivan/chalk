@@ -12,7 +12,7 @@ type Argument interface {
 }
 
 func NewArgument(obj types.Object) Argument {
-	return &objectArgument{obj}
+	return &scalarArgument{obj}
 }
 
 func (app *Application) Resolve() (types.Object, error) {
@@ -29,10 +29,10 @@ func (app *Application) Resolve() (types.Object, error) {
 	return app.Function.Handler(args...)
 }
 
-type objectArgument struct {
+type scalarArgument struct {
 	obj types.Object
 }
 
-func (arg *objectArgument) Resolve() (types.Object, error) {
+func (arg *scalarArgument) Resolve() (types.Object, error) {
 	return arg.obj, nil
 }
