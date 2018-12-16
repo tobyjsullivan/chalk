@@ -1,4 +1,7 @@
-.PHONY: deploy clean
+.PHONY: init deploy clean
+
+init:
+	go get -t -v ./...
 
 deploy: build/handler.zip
 	terraform apply
