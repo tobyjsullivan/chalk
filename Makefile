@@ -5,8 +5,8 @@ deploy: build/handler.zip
 
 build/handler.zip: $(wildcard **/*.go)
 	mkdir -p build
-	GOOS=linux go build -o build/handler ./lambda
-	cd build && zip handler.zip ./handler
+	GOOS=linux go build -o build/executor ./executor
+	cd build && zip executor_lambda.zip ./executor
 
 clean:
 	rm -rf ./build
