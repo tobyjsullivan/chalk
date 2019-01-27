@@ -1,84 +1,55 @@
 package parsing
 
 import (
+	"fmt"
 	"github.com/tobyjsullivan/chalk/api"
-	"io"
-	"strings"
+	"strconv"
 )
-
-const (
-	tokenTypePunctuation TokenType = iota
-	tokenTypeNumber TokenType = iota
-	tokenTypeString TokenType = iota
-	tokenTypeKeyword TokenType = iota
-	tokenTypeOperator TokenType = iota
-	tokenTypeIdentifier TokenType = iota
-)
-
-type TokenType int
 
 func Parse(formula string) (*api.Object, error) {
-	strings.NewReader(formula)
-}
+	p := NewParser(NewLexer(NewInputStream(formula)))
 
-type InputStream struct {
-	input []rune
-	pos int
-	line int
-	col int
-}
-
-func NewInputStream(input string) *InputStream {
-	return &InputStream{
-		input: []rune(input),
-		pos: 0,
-		line: 1,
-		col: 0,
+	ast, err := p.Parse()
+	if err != nil {
+		return nil, err
 	}
+
+	return mapAst(ast)
 }
 
-func (is *InputStream) next() rune {
-	ch := is.input[is.pos]
-	is.pos++
-	if ch == '\n' {
-		is.line++
-		is.col = 0
+func mapAst(ast *ASTNode) (*api.Object, error) {
+	if ast.NumberVal != nil {
+		f, err := strconv.ParseFloat(*ast.NumberVal, 64)
+		if err != nil {
+			return nil, err
+		}
+		return &api.Object{
+			Type: api.TypeNumber,
+			NumberValue: f,
+		}, nil
+	} else if ast.StringVal != nil {
+		return &api.Object{
+			Type: api.TypeString,
+			StringValue: *ast.StringVal,
+		}, nil
+	} else if ast.FunctionCall != nil {
+		args := make([]*api.Object, len(ast.FunctionCall.Arguments))
+		for i, arg := range ast.FunctionCall.Arguments {
+			var err error
+			args[i], err = mapAst(arg)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return &api.Object{
+			Type:api.TypeApplication,
+			ApplicationValue:&api.Application{
+				FunctionName: ast.FunctionCall.FuncName,
+				Arguments:args,
+			},
+		}, nil
 	} else {
-		is.col++
+		return nil, fmt.Errorf("unknown ast node: %v", ast)
 	}
-	return ch
-}
-
-func (is *InputStream) peek() rune {
-	return is.input[is.pos]
-}
-
-func (is *InputStream) eot() bool {
-	return is.pos >= len(is.input)
-}
-
-// Reference: http://lisperator.net/pltut/parser/token-stream
-type TokenStream struct {
-	inputStream *InputStream
-}
-
-func (t *TokenStream) readNext() (Token, error) {
-
-}
-
-func isWhitespace(ch rune) bool {
-	return strings.ContainsRune(" \t\n", ch)
-}
-
-func isDigit(ch rune) bool {
-	return strings.ContainsRune("0123456789", ch)
-}
-
-func isDigit(ch rune) bool {
-	return strings.ContainsRune("0123456789", ch)
-}
-
-type Token struct {
-	Type int
-	Value string
 }
