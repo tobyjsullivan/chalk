@@ -21,8 +21,8 @@ type TokenType int
 
 // Source: http://lisperator.net/pltut/parser/token-stream
 type Lexer struct {
-	input *InputStream
-	pos   int
+	input   *InputStream
+	pos     int
 	current *Token
 }
 
@@ -38,7 +38,7 @@ func (l *Lexer) readNext() *Token {
 	l.readWhile(func(r rune) bool {
 		return isWhitespace(r)
 	})
-	if  l.input.eof() {
+	if l.input.eof() {
 		return nil
 	}
 	ch := l.input.peek()
@@ -51,7 +51,7 @@ func (l *Lexer) readNext() *Token {
 	}
 	if isPunctuation(ch) {
 		return &Token{
-			Type:tokenPunctuation,
+			Type:  tokenPunctuation,
 			Value: string(l.input.next()),
 		}
 	}
@@ -60,7 +60,7 @@ func (l *Lexer) readNext() *Token {
 	}
 
 	return &Token{
-		Type: tokenInvalid,
+		Type:  tokenInvalid,
 		Value: string(l.input.next()),
 	}
 }
@@ -82,7 +82,7 @@ func (l *Lexer) readString() *Token {
 		if l.input.eof() {
 			// String wasn't closed
 			return &Token{
-				Type: tokenIdentifier,
+				Type:  tokenIdentifier,
 				Value: fmt.Sprint(end, string(str)),
 			}
 		}
@@ -101,7 +101,7 @@ func (l *Lexer) readString() *Token {
 	}
 
 	return &Token{
-		Type: tokenString,
+		Type:  tokenString,
 		Value: string(str),
 	}
 }
@@ -122,7 +122,7 @@ func (l *Lexer) readNumber() *Token {
 	}
 
 	return &Token{
-		Type: tokenNumber,
+		Type:  tokenNumber,
 		Value: string(str),
 	}
 }
@@ -139,7 +139,7 @@ func (l *Lexer) readIdentifier() *Token {
 	}
 
 	return &Token{
-		Type: tokenIdentifier,
+		Type:  tokenIdentifier,
 		Value: string(str),
 	}
 }

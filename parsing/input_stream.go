@@ -2,17 +2,17 @@ package parsing
 
 type InputStream struct {
 	input []rune
-	pos int
-	line int
-	col int
+	pos   int
+	line  int
+	col   int
 }
 
 func NewInputStream(input string) *InputStream {
 	return &InputStream{
 		input: []rune(input),
-		pos: 0,
-		line: 1,
-		col: 0,
+		pos:   0,
+		line:  1,
+		col:   0,
 	}
 }
 

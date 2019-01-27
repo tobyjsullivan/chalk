@@ -24,12 +24,12 @@ func mapAst(ast *ASTNode) (*api.Object, error) {
 			return nil, err
 		}
 		return &api.Object{
-			Type: api.TypeNumber,
+			Type:        api.TypeNumber,
 			NumberValue: f,
 		}, nil
 	} else if ast.StringVal != nil {
 		return &api.Object{
-			Type: api.TypeString,
+			Type:        api.TypeString,
 			StringValue: *ast.StringVal,
 		}, nil
 	} else if ast.FunctionCall != nil {
@@ -43,10 +43,10 @@ func mapAst(ast *ASTNode) (*api.Object, error) {
 		}
 
 		return &api.Object{
-			Type:api.TypeApplication,
-			ApplicationValue:&api.Application{
+			Type: api.TypeApplication,
+			ApplicationValue: &api.Application{
 				FunctionName: ast.FunctionCall.FuncName,
-				Arguments:args,
+				Arguments:    args,
 			},
 		}, nil
 	} else {
