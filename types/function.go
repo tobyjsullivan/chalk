@@ -9,7 +9,6 @@ type Function struct {
 
 type FunctionHandler func(params ...Object) (Object, error)
 
-
 func (f *Function) AsNumber() (*Number, error) {
 	return nil, InvalidCastError{}
 }

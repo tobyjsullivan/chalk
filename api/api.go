@@ -91,7 +91,6 @@ func mapAst(ast *parsing.ASTNode) (*Object, error) {
 	}
 }
 
-
 func isScalar(formula *Object) (bool, error) {
 	switch formula.Type {
 	case TypeApplication:
