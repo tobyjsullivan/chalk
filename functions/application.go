@@ -3,7 +3,7 @@ package functions
 import "github.com/tobyjsullivan/chalk/types"
 
 type Application struct {
-	Function  *Function
+	Function  *types.Function
 	Arguments []Argument
 }
 

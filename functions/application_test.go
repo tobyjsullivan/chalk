@@ -6,7 +6,7 @@ import (
 )
 
 func TestApplication_Resolve(t *testing.T) {
-	fSum := &Function{
+	fSum := &types.Function{
 		Handler: func(params ...types.Object) (types.Object, error) {
 			a, _ := params[0].AsNumber()
 			b, _ := params[1].AsNumber()

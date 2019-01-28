@@ -3,11 +3,10 @@ package std
 import (
 	"errors"
 	"fmt"
-	"github.com/tobyjsullivan/chalk/functions"
 	"github.com/tobyjsullivan/chalk/types"
 )
 
-var Concatenate = &functions.Function{
+var Concatenate = &types.Function{
 	Parameters: []types.Type{types.TString, types.TString},
 	Variadic:   true,
 	Returns:    types.TString,

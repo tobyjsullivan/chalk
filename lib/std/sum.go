@@ -3,11 +3,10 @@ package std
 import (
 	"errors"
 	"fmt"
-	"github.com/tobyjsullivan/chalk/functions"
 	"github.com/tobyjsullivan/chalk/types"
 )
 
-var Sum = &functions.Function{
+var Sum = &types.Function{
 	Handler: func(params ...types.Object) (types.Object, error) {
 		var acc float64
 		for i, p := range params {

@@ -4,5 +4,6 @@ type Type int
 
 const (
 	TString Type = iota
-	TNumber Type = iota
+	TNumber
+	TFunction
 )

@@ -18,3 +18,7 @@ func (n *Number) AsNumber() (*Number, error) {
 func (n *Number) AsString() (*String, error) {
 	return nil, InvalidCastError{}
 }
+
+func (s *Number) AsFunction() (*Function, error) {
+	return nil, InvalidCastError{}
+}

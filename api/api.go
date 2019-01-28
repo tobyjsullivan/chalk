@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/tobyjsullivan/chalk/functions"
 	"github.com/tobyjsullivan/chalk/lib/std"
+	"github.com/tobyjsullivan/chalk/parsing"
 	"github.com/tobyjsullivan/chalk/types"
+	"strconv"
 	"strings"
 )
 
@@ -16,7 +18,7 @@ const (
 )
 
 type QueryRequest struct {
-	Formula *Object `json:"formula"`
+	Formula string `json:"formula"`
 }
 
 type Application struct {
@@ -37,12 +39,58 @@ type QueryResult struct {
 }
 
 func Query(request *QueryRequest) *QueryResult {
-	result, err := resolve(request.Formula)
+	ast, err := parsing.Parse(request.Formula)
 	if err != nil {
 		return toErrorResult(err)
 	}
+
+	function, err := mapAst(ast)
+
+	result, err := resolve(function)
+	if err != nil {
+		return toErrorResult(err)
+	}
+
 	return toResult(result)
 }
+
+func mapAst(ast *parsing.ASTNode) (*Object, error) {
+	if ast.NumberVal != nil {
+		f, err := strconv.ParseFloat(*ast.NumberVal, 64)
+		if err != nil {
+			return nil, err
+		}
+		return &Object{
+			Type:        TypeNumber,
+			NumberValue: f,
+		}, nil
+	} else if ast.StringVal != nil {
+		return &Object{
+			Type:        TypeString,
+			StringValue: *ast.StringVal,
+		}, nil
+	} else if ast.FunctionCall != nil {
+		args := make([]*Object, len(ast.FunctionCall.Arguments))
+		for i, arg := range ast.FunctionCall.Arguments {
+			var err error
+			args[i], err = mapAst(arg)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return &Object{
+			Type: TypeApplication,
+			ApplicationValue: &Application{
+				FunctionName: ast.FunctionCall.FuncName,
+				Arguments:    args,
+			},
+		}, nil
+	} else {
+		return nil, fmt.Errorf("unknown ast node: %v", ast)
+	}
+}
+
 
 func isScalar(formula *Object) (bool, error) {
 	switch formula.Type {
@@ -128,7 +176,7 @@ func toErrorResult(err error) *QueryResult {
 	}
 }
 
-func findFunction(funcName string) (*functions.Function, error) {
+func findFunction(funcName string) (*types.Function, error) {
 	switch strings.ToLower(funcName) {
 	case "sum":
 		return std.Sum, nil
