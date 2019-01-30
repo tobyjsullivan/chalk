@@ -3,7 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
-	"github.com/tobyjsullivan/chalk/api"
+	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/variables"
 	"log"
 	"net/http"
@@ -74,13 +74,13 @@ func doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 
 func doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	body := req.Body
-	var query api.QueryRequest
+	var query resolver.QueryRequest
 	err := json.Unmarshal([]byte(body), &query)
 	if err != nil {
 		return nil, err
 	}
 
-	result := api.Query(&query)
+	result := resolver.Query(&query)
 
 	b, err := json.Marshal(result)
 	if err != nil {
