@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package rpc;
+
+service Resolver {
+    rpc Resolve (ResolveRequest) returns (ResolveResponse) {}
+}
+
+message ResolveRequest {
+    string formula = 1;
+}
+
+message ResolveResponse {
+    Object result = 1;
+    string error = 2;
+}
+
+enum ObjectType {
+    STRING = 0;
+    NUMBER = 1;
+}
+
+message Object {
+    ObjectType type = 1;
+    string stringValue = 2;
+    double numberValue = 3;
+}

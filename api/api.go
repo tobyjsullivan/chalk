@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"github.com/tobyjsullivan/chalk/resolver"
+	resolver_rpc "github.com/tobyjsullivan/chalk/resolver/rpc"
 	"github.com/tobyjsullivan/chalk/variables"
 	"log"
 	"net/http"
@@ -28,19 +28,21 @@ type ApiResponse struct {
 }
 
 type Handler struct {
-	varSvc variables.VariablesClient
+	resolverSvc  resolver_rpc.ResolverClient
+	variablesSvc variables.VariablesClient
 }
 
-func NewHandler(variablesSvc variables.VariablesClient) *Handler {
+func NewHandler(resolverSvc resolver_rpc.ResolverClient, variablesSvc variables.VariablesClient) *Handler {
 	return &Handler{
-		varSvc: variablesSvc,
+		resolverSvc:  resolverSvc,
+		variablesSvc: variablesSvc,
 	}
 }
 
 func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
 	request.Headers = normaliseHeaders(request.Headers)
 
-	resp, err := h.varSvc.GetVariables(ctx, &variables.GetVariablesRequest{
+	resp, err := h.variablesSvc.GetVariables(ctx, &variables.GetVariablesRequest{
 		Keys: []string{"var1", "var2"},
 	})
 	if err != nil {
@@ -51,9 +53,9 @@ func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiRes
 
 	switch request.HttpMethod {
 	case http.MethodPost:
-		return doPost(ctx, request)
+		return h.doPost(ctx, request)
 	case http.MethodOptions:
-		return doOptions(ctx, request)
+		return h.doOptions(ctx, request)
 	default:
 		return &ApiResponse{
 			StatusCode:      http.StatusMethodNotAllowed,
@@ -63,7 +65,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiRes
 	}
 }
 
-func doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	return &ApiResponse{
 		StatusCode:      http.StatusOK,
 		Headers:         determineCorsHeaders(req),
@@ -72,17 +74,34 @@ func doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	}, nil
 }
 
-func doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	body := req.Body
-	var query resolver.QueryRequest
+	var query resolver_rpc.ResolveRequest
 	err := json.Unmarshal([]byte(body), &query)
 	if err != nil {
 		return nil, err
 	}
 
-	result := resolver.Query(&query)
+	result, err := h.resolverSvc.Resolve(ctx, &query)
+	if err != nil {
+		return nil, err
+	}
 
-	b, err := json.Marshal(result)
+	var out executionResult
+	out.Error = result.Error
+	if result.Result != nil {
+		out.Result = &executionResultObject{}
+		switch result.Result.Type {
+		case resolver_rpc.ObjectType_STRING:
+			out.Result.Type = "string"
+			out.Result.StringValue = result.Result.StringValue
+		case resolver_rpc.ObjectType_NUMBER:
+			out.Result.Type = "number"
+			out.Result.NumberValue = result.Result.NumberValue
+		}
+	}
+
+	b, err := json.Marshal(out)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +112,17 @@ func doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 		Body:            b,
 		IsBase64Encoded: false,
 	}, nil
+}
+
+type executionResult struct {
+	Result *executionResultObject `json:"result,omitempty'"`
+	Error string `json:"error,omitempty"`
+}
+
+type executionResultObject struct {
+	Type string `json:"type"`
+	NumberValue float64 `json:"numberValue,omitempty"`
+	StringValue string `json:"stringValue,omitempty"`
 }
 
 func normaliseHeaders(in map[string]string) map[string]string {

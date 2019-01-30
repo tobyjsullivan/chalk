@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/tobyjsullivan/chalk/api"
+	"github.com/tobyjsullivan/chalk/resolver/rpc"
 	"github.com/tobyjsullivan/chalk/variables"
 	"google.golang.org/grpc"
 	"io/ioutil"
@@ -48,17 +49,28 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	port := "8080"
 
+	resolverSvc := os.Getenv("RESOLVER_SVC")
 	varsSvc := os.Getenv("VARIABLES_SVC")
-	conn, err := grpc.Dial(varsSvc, grpc.WithInsecure())
+
+	resolverConn, err := grpc.Dial(resolverSvc, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to dial resolver service: %v", err)
+	}
+	defer resolverConn.Close()
+
+	varsConn, err := grpc.Dial(varsSvc, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial variables service: %v", err)
 	}
-	defer conn.Close()
+	defer varsConn.Close()
 
 	s := &http.Server{
 		Addr: ":" + port,
 		Handler: &handler{
-			executionHandler: api.NewHandler(variables.NewVariablesClient(conn)),
+			executionHandler: api.NewHandler(
+				rpc.NewResolverClient(resolverConn),
+				variables.NewVariablesClient(varsConn),
+			),
 		},
 		ReadTimeout:    2 * time.Second,
 		WriteTimeout:   2 * time.Second,

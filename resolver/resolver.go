@@ -6,39 +6,31 @@ import (
 	"github.com/tobyjsullivan/chalk/functions"
 	"github.com/tobyjsullivan/chalk/lib/std"
 	"github.com/tobyjsullivan/chalk/parsing"
+	"github.com/tobyjsullivan/chalk/resolver/rpc"
 	"github.com/tobyjsullivan/chalk/types"
 	"strconv"
 	"strings"
 )
 
 const (
-	TypeString      = "string"
-	TypeNumber      = "number"
-	TypeApplication = "application"
+	typeString      = "string"
+	typeNumber      = "number"
+	typeApplication = "application"
 )
 
-type QueryRequest struct {
-	Formula string `json:"formula"`
-}
-
-type Application struct {
+type application struct {
 	FunctionName string    `json:"function"`
-	Arguments    []*Object `json:"arguments"`
+	Arguments    []*object `json:"arguments"`
 }
 
-type Object struct {
+type object struct {
 	Type             string       `json:"type"`
 	StringValue      string       `json:"stringValue,omitempty"`
 	NumberValue      float64      `json:"numberValue,omitempty"`
-	ApplicationValue *Application `json:"applicationValue,omitempty"`
+	ApplicationValue *application `json:"applicationValue,omitempty"`
 }
 
-type QueryResult struct {
-	Result *Object `json:"result,omitempty"`
-	Error  string  `json:"error,omitempty"`
-}
-
-func Query(request *QueryRequest) *QueryResult {
+func Query(request *rpc.ResolveRequest) *rpc.ResolveResponse {
 	ast, err := parsing.Parse(request.Formula)
 	if err != nil {
 		return toErrorResult(err)
@@ -54,23 +46,23 @@ func Query(request *QueryRequest) *QueryResult {
 	return toResult(result)
 }
 
-func mapAst(ast *parsing.ASTNode) (*Object, error) {
+func mapAst(ast *parsing.ASTNode) (*object, error) {
 	if ast.NumberVal != nil {
 		f, err := strconv.ParseFloat(*ast.NumberVal, 64)
 		if err != nil {
 			return nil, err
 		}
-		return &Object{
-			Type:        TypeNumber,
+		return &object{
+			Type:        typeNumber,
 			NumberValue: f,
 		}, nil
 	} else if ast.StringVal != nil {
-		return &Object{
-			Type:        TypeString,
+		return &object{
+			Type:        typeString,
 			StringValue: *ast.StringVal,
 		}, nil
 	} else if ast.FunctionCall != nil {
-		args := make([]*Object, len(ast.FunctionCall.Arguments))
+		args := make([]*object, len(ast.FunctionCall.Arguments))
 		for i, arg := range ast.FunctionCall.Arguments {
 			var err error
 			args[i], err = mapAst(arg)
@@ -79,9 +71,9 @@ func mapAst(ast *parsing.ASTNode) (*Object, error) {
 			}
 		}
 
-		return &Object{
-			Type: TypeApplication,
-			ApplicationValue: &Application{
+		return &object{
+			Type: typeApplication,
+			ApplicationValue: &application{
 				FunctionName: ast.FunctionCall.FuncName,
 				Arguments:    args,
 			},
@@ -91,20 +83,20 @@ func mapAst(ast *parsing.ASTNode) (*Object, error) {
 	}
 }
 
-func isScalar(formula *Object) (bool, error) {
+func isScalar(formula *object) (bool, error) {
 	switch formula.Type {
-	case TypeApplication:
+	case typeApplication:
 		return false, nil
-	case TypeNumber:
+	case typeNumber:
 		return true, nil
-	case TypeString:
+	case typeString:
 		return true, nil
 	default:
 		return false, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type))
 	}
 }
 
-func resolve(formula *Object) (*Object, error) {
+func resolve(formula *object) (*object, error) {
 	if isScalar, err := isScalar(formula); err != nil {
 		return nil, err
 	} else if isScalar {
@@ -123,7 +115,7 @@ func resolve(formula *Object) (*Object, error) {
 	return fromFuncObject(result)
 }
 
-func toApplication(app *Application) (*functions.Application, error) {
+func toApplication(app *application) (*functions.Application, error) {
 	f, err := findFunction(app.FunctionName)
 	if err != nil {
 		return nil, err
@@ -143,17 +135,17 @@ func toApplication(app *Application) (*functions.Application, error) {
 	}, nil
 }
 
-func fromFuncObject(input types.Object) (*Object, error) {
-	var output *Object
+func fromFuncObject(input types.Object) (*object, error) {
+	var output *object
 	switch e := input.(type) {
 	case *types.Number:
-		output = &Object{
-			Type:        TypeNumber,
+		output = &object{
+			Type:        typeNumber,
 			NumberValue: e.Raw(),
 		}
 	case *types.String:
-		output = &Object{
-			Type:        TypeString,
+		output = &object{
+			Type:        typeString,
 			StringValue: e.Raw(),
 		}
 	default:
@@ -163,14 +155,29 @@ func fromFuncObject(input types.Object) (*Object, error) {
 	return output, nil
 }
 
-func toResult(res *Object) *QueryResult {
-	return &QueryResult{
-		Result: res,
+func toResult(res *object) *rpc.ResolveResponse {
+	switch res.Type {
+	case typeNumber:
+		return &rpc.ResolveResponse{
+			Result: &rpc.Object{
+				Type:        rpc.ObjectType_NUMBER,
+				NumberValue: res.NumberValue,
+			},
+		}
+	case typeString:
+		return &rpc.ResolveResponse{
+			Result: &rpc.Object{
+				Type:        rpc.ObjectType_STRING,
+				StringValue: res.StringValue,
+			},
+		}
+	default:
+		return toErrorResult(fmt.Errorf("unexpected result type: %v", res.Type))
 	}
 }
 
-func toErrorResult(err error) *QueryResult {
-	return &QueryResult{
+func toErrorResult(err error) *rpc.ResolveResponse {
+	return &rpc.ResolveResponse{
 		Error: fmt.Sprint(err),
 	}
 }
@@ -186,17 +193,17 @@ func findFunction(funcName string) (*types.Function, error) {
 	}
 }
 
-func toArgument(arg *Object) (functions.Argument, error) {
+func toArgument(arg *object) (functions.Argument, error) {
 	switch arg.Type {
-	case TypeApplication:
+	case typeApplication:
 		app, err := toApplication(arg.ApplicationValue)
 		if err != nil {
 			return nil, err
 		}
 		return app, nil
-	case TypeNumber:
+	case typeNumber:
 		return functions.NewArgument(types.NewNumber(arg.NumberValue)), nil
-	case TypeString:
+	case typeString:
 		return functions.NewArgument(types.NewString(arg.StringValue)), nil
 	default:
 		return nil, errors.New(fmt.Sprintf("unrecognized argument type %s", arg.Type))
