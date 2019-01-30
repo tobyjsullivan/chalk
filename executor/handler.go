@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/tobyjsullivan/chalk/api"
+	"github.com/tobyjsullivan/chalk/variables"
+	"google.golang.org/grpc"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -26,7 +30,11 @@ type ApiResponse struct {
 	IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-func handleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
+type handler struct {
+	varSvc variables.VariablesClient
+}
+
+func (h *handler) handleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
 	request.Headers = normaliseHeaders(request.Headers)
 
 	switch request.HttpMethod {
@@ -112,5 +120,15 @@ func determineCorsHeaders(req *ApiEvent) map[string]string {
 }
 
 func main() {
-	lambda.Start(handleRequest)
+	varsSvc := os.Getenv("VARIABLES_SVC")
+	conn, err := grpc.Dial(varsSvc, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to dial variables service: %v", err)
+	}
+	defer conn.Close()
+	handler := handler{
+		varSvc: variables.NewVariablesClient(conn),
+	}
+
+	lambda.Start(handler.handleRequest)
 }

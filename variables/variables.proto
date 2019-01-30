@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package variables;
+
+service Variables {
+    rpc GetVariables (GetVariablesRequest) returns (GetVariablesResponse) {}
+}
+
+message GetVariablesRequest {
+    repeated string keys = 1;
+}
+
+message GetVariablesResponse {
+    message VariableEntry {
+        string key = 1;
+        string formula = 2;
+    }
+
+    repeated VariableEntry values = 1;
+}
