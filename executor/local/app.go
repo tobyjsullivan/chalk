@@ -21,10 +21,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := &lambda.ApiEvent{
-		Body: string(body),
+		Body:       string(body),
 		HttpMethod: r.Method,
-		Path: r.URL.Path,
-		Headers: headers,
+		Path:       r.URL.Path,
+		Headers:    headers,
 	}
 
 	handler := lambda.Handler{}

@@ -26,7 +26,7 @@ type ApiEvent struct {
 type ApiResponse struct {
 	StatusCode      int               `json:"statusCode"`
 	Headers         map[string]string `json:"headers"`
-	Body            []byte	          `json:"body"`
+	Body            []byte            `json:"body"`
 	IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
@@ -44,7 +44,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiRes
 		return doOptions(ctx, request)
 	default:
 		return &ApiResponse{
-			StatusCode: http.StatusMethodNotAllowed,
+			StatusCode:      http.StatusMethodNotAllowed,
 			Body:            []byte("405 Method Not Allowed"),
 			IsBase64Encoded: false,
 		}, nil
