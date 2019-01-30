@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/tobyjsullivan/chalk/executor"
+	"github.com/tobyjsullivan/chalk/api"
 	"github.com/tobyjsullivan/chalk/variables"
 	"google.golang.org/grpc"
 	"io/ioutil"
@@ -13,7 +13,7 @@ import (
 )
 
 type handler struct {
-	executionHandler *executor.Handler
+	executionHandler *api.Handler
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +25,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	req := &executor.ApiEvent{
+	req := &api.ApiEvent{
 		Body:       string(body),
 		HttpMethod: r.Method,
 		Path:       r.URL.Path,
@@ -58,7 +58,7 @@ func main() {
 	s := &http.Server{
 		Addr: ":" + port,
 		Handler: &handler{
-			executionHandler: executor.NewHandler(variables.NewVariablesClient(conn)),
+			executionHandler: api.NewHandler(variables.NewVariablesClient(conn)),
 		},
 		ReadTimeout:    2 * time.Second,
 		WriteTimeout:   2 * time.Second,

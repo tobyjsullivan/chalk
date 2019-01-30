@@ -52,7 +52,7 @@ resource "aws_lambda_function" "executor" {
   filename                       = "${var.lambda_package}"
   source_code_hash               = "${base64sha256(file(var.lambda_package))}"
   function_name                  = "chalk-executor-${random_id.handler_id.hex}"
-  handler                        = "executor"
+  handler                        = "api"
   timeout                        = 30
   runtime                        = "go1.x"
   role                           = "${aws_iam_role.lambda_role.arn}"

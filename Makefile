@@ -1,15 +1,20 @@
 GO_FILES := $(shell find . -name '*.go')
-OUT_VARS_SVC := 'build/variables-svc'
+IN_API_SRC := ./api/lambda
+BUILD_DIR := build
+OUT_VARS_SVC := $(BUILD_DIR)/variables-svc
+API_BUILD_EXE := api
+API_BUILD := $(BUILD_DIR)/$(API_BUILD_EXE)
+API_PACKAGE := $(BUILD_DIR)/executor_lambda.zip
 
-build/executor: $(GO_FILES)
-	mkdir -p build
-	GOOS=linux go build -o build/executor ./executor/lambda
+$(API_BUILD): $(GO_FILES)
+	mkdir -p $(BUILD_DIR)
+	GOOS=linux go build -o $(API_BUILD) $(IN_API_SRC)
 
-build/executor_lambda.zip: build/executor
-	cd build && zip executor_lambda.zip ./executor
+$(API_PACKAGE): $(API_BUILD)
+	cd $(BUILD_DIR) && zip ../$(API_PACKAGE) $(API_BUILD_EXE)
 
 $(OUT_VARS_SVC): $(GO_FILES)
-	mkdir -p build
+	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(OUT_VARS_SVC) ./variables/server
 
 .PHONY: apply clean deploy generate init
@@ -18,9 +23,9 @@ apply:
 	cd ./infra && terraform apply
 
 clean:
-	rm -rf ./build
+	rm -rf $(BUILD_DIR)
 
-deploy: build/executor_lambda.zip $(OUT_VARS_SVC) apply
+deploy: $(API_PACKAGE) $(OUT_VARS_SVC) apply
 
 dump-test:
 	echo $(GO_FILES)

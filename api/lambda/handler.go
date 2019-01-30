@@ -2,7 +2,7 @@ package lambda
 
 import (
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/tobyjsullivan/chalk/executor"
+	"github.com/tobyjsullivan/chalk/api"
 	"github.com/tobyjsullivan/chalk/variables"
 	"google.golang.org/grpc"
 	"log"
@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("failed to dial variables service: %v", err)
 	}
 	defer conn.Close()
-	handler := executor.NewHandler(variables.NewVariablesClient(conn))
+	handler := api.NewHandler(variables.NewVariablesClient(conn))
 
 	lambda.Start(handler.HandleRequest)
 }
