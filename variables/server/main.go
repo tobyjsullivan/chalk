@@ -16,6 +16,7 @@ import (
 type server struct{}
 
 func (s *server) GetVariables(ctx context.Context, in *variables.GetVariablesRequest) (*variables.GetVariablesResponse, error) {
+	log.Printf("Recevied GetVariables request: %v", in)
 	// TODO
 	return nil, errors.New("not implemented")
 }
@@ -26,7 +27,7 @@ func main() {
 		port = "8080"
 	}
 
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

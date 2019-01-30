@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
-	"github.com/tobyjsullivan/chalk/executor/lambda"
+	"github.com/tobyjsullivan/chalk/executor"
+	"github.com/tobyjsullivan/chalk/variables"
+	"google.golang.org/grpc"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
-type handler struct{}
+type handler struct {
+	executionHandler *executor.Handler
+}
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
@@ -20,16 +25,15 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	req := &lambda.ApiEvent{
+	req := &executor.ApiEvent{
 		Body:       string(body),
 		HttpMethod: r.Method,
 		Path:       r.URL.Path,
 		Headers:    headers,
 	}
 
-	handler := lambda.Handler{}
 	ctx := context.Background()
-	resp, err := handler.HandleRequest(ctx, req)
+	resp, err := h.executionHandler.HandleRequest(ctx, req)
 	if err != nil {
 		log.Panicf("Error handling request: %v", err)
 	}
@@ -43,9 +47,19 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	port := "8080"
+
+	varsSvc := os.Getenv("VARIABLES_SVC")
+	conn, err := grpc.Dial(varsSvc, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to dial variables service: %v", err)
+	}
+	defer conn.Close()
+
 	s := &http.Server{
-		Addr:           ":" + port,
-		Handler:        &handler{},
+		Addr: ":" + port,
+		Handler: &handler{
+			executionHandler: executor.NewHandler(variables.NewVariablesClient(conn)),
+		},
 		ReadTimeout:    2 * time.Second,
 		WriteTimeout:   2 * time.Second,
 		MaxHeaderBytes: 1 << 20,
