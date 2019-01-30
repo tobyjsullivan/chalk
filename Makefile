@@ -3,7 +3,7 @@ OUT_VARS_SVC := 'build/variables-svc'
 
 build/executor: $(GO_FILES)
 	mkdir -p build
-	GOOS=linux go build -o build/executor ./executor
+	GOOS=linux go build -o build/executor ./executor/lambda
 
 build/executor_lambda.zip: build/executor
 	cd build && zip executor_lambda.zip ./executor
@@ -20,7 +20,7 @@ apply:
 clean:
 	rm -rf ./build
 
-deploy: build/handler.zip $(OUT_VARS_SVC) apply
+deploy: build/executor_lambda.zip $(OUT_VARS_SVC) apply
 
 dump-test:
 	echo $(GO_FILES)

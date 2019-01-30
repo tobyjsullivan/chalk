@@ -1,4 +1,4 @@
-package main
+package lambda
 
 import (
 	"context"
@@ -26,15 +26,15 @@ type ApiEvent struct {
 type ApiResponse struct {
 	StatusCode      int               `json:"statusCode"`
 	Headers         map[string]string `json:"headers"`
-	Body            interface{}       `json:"body"`
+	Body            []byte	          `json:"body"`
 	IsBase64Encoded bool              `json:"isBase64Encoded"`
 }
 
-type handler struct {
+type Handler struct {
 	varSvc variables.VariablesClient
 }
 
-func (h *handler) handleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
+func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
 	request.Headers = normaliseHeaders(request.Headers)
 
 	switch request.HttpMethod {
@@ -78,7 +78,7 @@ func doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	return &ApiResponse{
 		StatusCode:      http.StatusOK,
 		Headers:         determineCorsHeaders(req),
-		Body:            string(b),
+		Body:            b,
 		IsBase64Encoded: false,
 	}, nil
 }
@@ -126,9 +126,9 @@ func main() {
 		log.Fatalf("failed to dial variables service: %v", err)
 	}
 	defer conn.Close()
-	handler := handler{
+	handler := Handler{
 		varSvc: variables.NewVariablesClient(conn),
 	}
 
-	lambda.Start(handler.handleRequest)
+	lambda.Start(handler.HandleRequest)
 }
