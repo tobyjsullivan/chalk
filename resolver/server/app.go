@@ -34,6 +34,8 @@ func main() {
 	}
 	s := grpc.NewServer()
 	rpc.RegisterResolverServer(s, &server{})
+
+	log.Println("Starting server on", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

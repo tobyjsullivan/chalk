@@ -45,13 +45,13 @@ func (p *Parser) parseEntity() (*ASTNode, error) {
 			},
 		}, nil
 	default:
-		return nil, fmt.Errorf("expected Number, String, or Identifier; got: %v", tok)
+		return nil, fmt.Errorf("expected Number, String, or Identifier; got: %+v", tok)
 	}
 }
 
 func (p *Parser) parseArguments() ([]*ASTNode, error) {
 	if open := p.l.Next(); open == nil || open.Type != tokenPunctuation || open.Value != "(" {
-		return nil, fmt.Errorf("expected `(`; got %v", open)
+		return nil, fmt.Errorf("expected `(`; got %+v", *open)
 	}
 
 	var args []*ASTNode
@@ -77,7 +77,7 @@ func (p *Parser) parseArguments() ([]*ASTNode, error) {
 			} else if nTok.Type == tokenPunctuation && nTok.Value == ")" {
 				break
 			} else if nTok.Type != tokenPunctuation || nTok.Value != "," {
-				return nil, fmt.Errorf("expected `,` or `)`; got %v", nTok)
+				return nil, fmt.Errorf("expected `,` or `)`; got %+v", nTok)
 			}
 		}
 	}
