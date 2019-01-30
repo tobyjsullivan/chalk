@@ -51,7 +51,7 @@ func (p *Parser) parseEntity() (*ASTNode, error) {
 
 func (p *Parser) parseArguments() ([]*ASTNode, error) {
 	if open := p.l.Next(); open == nil || open.Type != tokenPunctuation || open.Value != "(" {
-		return nil, fmt.Errorf("expected `(`; got %+v", *open)
+		return nil, fmt.Errorf("expected `(`; got %+v", open)
 	}
 
 	var args []*ASTNode
