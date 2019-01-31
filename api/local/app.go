@@ -18,6 +18,7 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Println("Received request", r.Method, r.URL.Path)
 	body, _ := ioutil.ReadAll(r.Body)
 	headers := make(map[string]string)
 	for k, vs := range r.Header {
@@ -39,10 +40,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Panicf("Error handling request: %v", err)
 	}
 
-	w.WriteHeader(resp.StatusCode)
 	for k, v := range resp.Headers {
 		w.Header().Add(k, v)
 	}
+	w.WriteHeader(resp.StatusCode)
 	w.Write(resp.Body)
 }
 

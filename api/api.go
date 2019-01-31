@@ -40,8 +40,6 @@ func NewHandler(resolverSvc resolver_rpc.ResolverClient, variablesSvc variables.
 }
 
 func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
-	request.Headers = normaliseHeaders(request.Headers)
-
 	resp, err := h.variablesSvc.GetVariables(ctx, &variables.GetVariablesRequest{
 		Keys: []string{"var1", "var2"},
 	})
@@ -116,13 +114,13 @@ func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, erro
 
 type executionResult struct {
 	Result *executionResultObject `json:"result,omitempty'"`
-	Error string `json:"error,omitempty"`
+	Error  string                 `json:"error,omitempty"`
 }
 
 type executionResultObject struct {
-	Type string `json:"type"`
+	Type        string  `json:"type"`
 	NumberValue float64 `json:"numberValue,omitempty"`
-	StringValue string `json:"stringValue,omitempty"`
+	StringValue string  `json:"stringValue,omitempty"`
 }
 
 func normaliseHeaders(in map[string]string) map[string]string {
@@ -137,8 +135,9 @@ func normaliseHeaders(in map[string]string) map[string]string {
 }
 
 func determineCorsHeaders(req *ApiEvent) map[string]string {
-	origin, ok := req.Headers[headerOrigin]
+	origin, ok := normaliseHeaders(req.Headers)[headerOrigin]
 	if !ok || origin == "" {
+		log.Println("No origin")
 		return map[string]string{}
 	}
 

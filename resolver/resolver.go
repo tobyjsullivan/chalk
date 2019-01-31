@@ -47,6 +47,9 @@ func Query(request *rpc.ResolveRequest) *rpc.ResolveResponse {
 }
 
 func mapAst(ast *parsing.ASTNode) (*object, error) {
+	if ast == nil {
+		return nil, nil
+	}
 	if ast.NumberVal != nil {
 		f, err := strconv.ParseFloat(*ast.NumberVal, 64)
 		if err != nil {
@@ -97,6 +100,10 @@ func isScalar(formula *object) (bool, error) {
 }
 
 func resolve(formula *object) (*object, error) {
+	if formula == nil {
+		return nil, nil
+	}
+
 	if isScalar, err := isScalar(formula); err != nil {
 		return nil, err
 	} else if isScalar {
@@ -156,6 +163,11 @@ func fromFuncObject(input types.Object) (*object, error) {
 }
 
 func toResult(res *object) *rpc.ResolveResponse {
+	if res == nil {
+		return &rpc.ResolveResponse{
+			Result: nil,
+		}
+	}
 	switch res.Type {
 	case typeNumber:
 		return &rpc.ResolveResponse{

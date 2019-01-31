@@ -22,6 +22,10 @@ func (p *Parser) Parse() (*ASTNode, error) {
 
 func (p *Parser) parseEntity() (*ASTNode, error) {
 	tok := p.l.Next()
+	if tok == nil {
+		return nil, nil
+	}
+
 	switch tok.Type {
 	case tokenNumber:
 		return &ASTNode{

@@ -29,3 +29,18 @@ func TestParser_Parse(t *testing.T) {
 		t.Errorf("Expected \"4\"; got %s", *arg1.NumberVal)
 	}
 }
+
+func TestParse_Empty(t *testing.T) {
+	var input string
+
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if ast != nil {
+		t.Fatalf("Expected ast to be nil, got %+v", ast)
+	}
+}
