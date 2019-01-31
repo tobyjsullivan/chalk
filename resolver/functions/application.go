@@ -1,6 +1,6 @@
 package functions
 
-import "github.com/tobyjsullivan/chalk/types"
+import "github.com/tobyjsullivan/chalk/resolver/types"
 
 type Application struct {
 	Function  *types.Function

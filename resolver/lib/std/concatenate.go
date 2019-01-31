@@ -3,7 +3,7 @@ package std
 import (
 	"errors"
 	"fmt"
-	"github.com/tobyjsullivan/chalk/types"
+	"github.com/tobyjsullivan/chalk/resolver/types"
 )
 
 var Concatenate = &types.Function{

@@ -1,7 +1,7 @@
 package std
 
 import (
-	"github.com/tobyjsullivan/chalk/types"
+	"github.com/tobyjsullivan/chalk/resolver/types"
 	"testing"
 )
 

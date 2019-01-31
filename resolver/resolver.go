@@ -3,11 +3,11 @@ package resolver
 import (
 	"errors"
 	"fmt"
-	"github.com/tobyjsullivan/chalk/functions"
-	"github.com/tobyjsullivan/chalk/lib/std"
-	"github.com/tobyjsullivan/chalk/parsing"
+	"github.com/tobyjsullivan/chalk/resolver/functions"
+	"github.com/tobyjsullivan/chalk/resolver/lib/std"
+	"github.com/tobyjsullivan/chalk/resolver/parsing"
 	"github.com/tobyjsullivan/chalk/resolver/rpc"
-	"github.com/tobyjsullivan/chalk/types"
+	"github.com/tobyjsullivan/chalk/resolver/types"
 	"strconv"
 	"strings"
 )
