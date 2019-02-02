@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/tobyjsullivan/chalk/api"
-	"github.com/tobyjsullivan/chalk/resolver/rpc"
+	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/variables"
 	"google.golang.org/grpc"
 	"io/ioutil"
@@ -69,7 +69,7 @@ func main() {
 		Addr: ":" + port,
 		Handler: &handler{
 			executionHandler: api.NewHandler(
-				rpc.NewResolverClient(resolverConn),
+				resolver.NewResolverClient(resolverConn),
 				variables.NewVariablesClient(varsConn),
 			),
 		},

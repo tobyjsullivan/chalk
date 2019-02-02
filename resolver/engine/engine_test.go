@@ -1,4 +1,4 @@
-package resolver
+package engine
 
 import (
 	"github.com/tobyjsullivan/chalk/resolver/rpc"

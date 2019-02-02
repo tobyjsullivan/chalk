@@ -1,12 +1,12 @@
-package resolver
+package engine
 
 import (
 	"errors"
 	"fmt"
+	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/resolver/functions"
 	"github.com/tobyjsullivan/chalk/resolver/lib/std"
 	"github.com/tobyjsullivan/chalk/resolver/parsing"
-	"github.com/tobyjsullivan/chalk/resolver/rpc"
 	"github.com/tobyjsullivan/chalk/resolver/types"
 	"strconv"
 	"strings"
@@ -30,7 +30,7 @@ type object struct {
 	ApplicationValue *application `json:"applicationValue,omitempty"`
 }
 
-func Query(request *rpc.ResolveRequest) *rpc.ResolveResponse {
+func Query(request *resolver.ResolveRequest) *resolver.ResolveResponse {
 	ast, err := parsing.Parse(request.Formula)
 	if err != nil {
 		return toErrorResult(err)
@@ -162,24 +162,24 @@ func fromFuncObject(input types.Object) (*object, error) {
 	return output, nil
 }
 
-func toResult(res *object) *rpc.ResolveResponse {
+func toResult(res *object) *resolver.ResolveResponse {
 	if res == nil {
-		return &rpc.ResolveResponse{
+		return &resolver.ResolveResponse{
 			Result: nil,
 		}
 	}
 	switch res.Type {
 	case typeNumber:
-		return &rpc.ResolveResponse{
-			Result: &rpc.Object{
-				Type:        rpc.ObjectType_NUMBER,
+		return &resolver.ResolveResponse{
+			Result: &resolver.Object{
+				Type:        resolver.ObjectType_NUMBER,
 				NumberValue: res.NumberValue,
 			},
 		}
 	case typeString:
-		return &rpc.ResolveResponse{
-			Result: &rpc.Object{
-				Type:        rpc.ObjectType_STRING,
+		return &resolver.ResolveResponse{
+			Result: &resolver.Object{
+				Type:        resolver.ObjectType_STRING,
 				StringValue: res.StringValue,
 			},
 		}
@@ -188,8 +188,8 @@ func toResult(res *object) *rpc.ResolveResponse {
 	}
 }
 
-func toErrorResult(err error) *rpc.ResolveResponse {
-	return &rpc.ResolveResponse{
+func toErrorResult(err error) *resolver.ResolveResponse {
+	return &resolver.ResolveResponse{
 		Error: fmt.Sprint(err),
 	}
 }

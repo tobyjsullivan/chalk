@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
-	resolver_rpc "github.com/tobyjsullivan/chalk/resolver/rpc"
+	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/variables"
 	"log"
 	"net/http"
@@ -28,11 +28,11 @@ type ApiResponse struct {
 }
 
 type Handler struct {
-	resolverSvc  resolver_rpc.ResolverClient
+	resolverSvc  resolver.ResolverClient
 	variablesSvc variables.VariablesClient
 }
 
-func NewHandler(resolverSvc resolver_rpc.ResolverClient, variablesSvc variables.VariablesClient) *Handler {
+func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc variables.VariablesClient) *Handler {
 	return &Handler{
 		resolverSvc:  resolverSvc,
 		variablesSvc: variablesSvc,
@@ -74,7 +74,7 @@ func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, e
 
 func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	body := req.Body
-	var query resolver_rpc.ResolveRequest
+	var query resolver.ResolveRequest
 	err := json.Unmarshal([]byte(body), &query)
 	if err != nil {
 		return nil, err
@@ -90,10 +90,10 @@ func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, erro
 	if result.Result != nil {
 		out.Result = &executionResultObject{}
 		switch result.Result.Type {
-		case resolver_rpc.ObjectType_STRING:
+		case resolver.ObjectType_STRING:
 			out.Result.Type = "string"
 			out.Result.StringValue = result.Result.StringValue
-		case resolver_rpc.ObjectType_NUMBER:
+		case resolver.ObjectType_NUMBER:
 			out.Result.Type = "number"
 			out.Result.NumberValue = result.Result.NumberValue
 		}
