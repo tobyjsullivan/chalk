@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/tobyjsullivan/chalk/variables"
 
 	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/resolver/functions"
@@ -16,6 +19,7 @@ import (
 const (
 	typeString      = "string"
 	typeNumber      = "number"
+	typeVariable    = "variable"
 	typeApplication = "application"
 )
 
@@ -28,23 +32,41 @@ type object struct {
 	Type             string       `json:"type"`
 	StringValue      string       `json:"stringValue,omitempty"`
 	NumberValue      float64      `json:"numberValue,omitempty"`
+	VariableName     string       `json:"variableName,omitempty"`
 	ApplicationValue *application `json:"applicationValue,omitempty"`
 }
 
-func Query(request *resolver.ResolveRequest) *resolver.ResolveResponse {
-	ast, err := parsing.Parse(request.Formula)
+type Engine struct {
+	varSvc variables.VariablesClient
+}
+
+func NewEngine(varSvc variables.VariablesClient) *Engine {
+	return &Engine{
+		varSvc: varSvc,
+	}
+}
+
+func (e *Engine) Query(ctx context.Context, request *resolver.ResolveRequest) *resolver.ResolveResponse {
+	function, err := parseFormula(request.Formula)
 	if err != nil {
 		return toErrorResult(err)
 	}
 
-	function, err := mapAst(ast)
-
-	result, err := resolve(function)
+	result, err := e.resolve(ctx, function, []string{})
 	if err != nil {
 		return toErrorResult(err)
 	}
 
 	return toResult(result)
+}
+
+func parseFormula(formula string) (*object, error) {
+	ast, err := parsing.Parse(formula)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapAst(ast)
 }
 
 func mapAst(ast *parsing.ASTNode) (*object, error) {
@@ -82,6 +104,11 @@ func mapAst(ast *parsing.ASTNode) (*object, error) {
 				Arguments:    args,
 			},
 		}, nil
+	} else if ast.VariableVal != nil {
+		return &object{
+			Type:         typeVariable,
+			VariableName: *ast.VariableVal,
+		}, nil
 	} else {
 		return nil, fmt.Errorf("unknown ast node: %v", ast)
 	}
@@ -95,12 +122,14 @@ func isScalar(formula *object) (bool, error) {
 		return true, nil
 	case typeString:
 		return true, nil
+	case typeVariable:
+		return false, nil
 	default:
 		return false, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type))
 	}
 }
 
-func resolve(formula *object) (*object, error) {
+func (e *Engine) resolve(ctx context.Context, formula *object, varHistory []string) (*object, error) {
 	if formula == nil {
 		return nil, nil
 	}
@@ -111,7 +140,41 @@ func resolve(formula *object) (*object, error) {
 		return formula, nil
 	}
 
-	app, err := toApplication(formula.ApplicationValue)
+	if formula.Type == typeVariable {
+		// Check for cycles
+		varName := formula.VariableName
+		for _, seen := range varHistory {
+			if seen == varName {
+				return nil, fmt.Errorf("variable cycle detected: %s", varName)
+			}
+		}
+
+		// Lookup formula
+		resp, err := e.varSvc.GetVariables(ctx, &variables.GetVariablesRequest{
+			Keys: []string{varName},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(resp.Values) != 1 {
+			return nil, fmt.Errorf("expected exactly 1 value; got: %d", len(resp.Values))
+		}
+		f := resp.Values[0].Formula
+
+		// get object
+		o, err := parseFormula(f)
+		if err != nil {
+			return nil, err
+		}
+
+		// resolve
+		newHist := make([]string, len(varHistory)+1)
+		copy(newHist, varHistory)
+		newHist[len(varHistory)] = varName
+		return e.resolve(ctx, o, newHist)
+	}
+
+	app, err := e.toApplication(ctx, formula.ApplicationValue, varHistory)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +186,7 @@ func resolve(formula *object) (*object, error) {
 	return fromFuncObject(result)
 }
 
-func toApplication(app *application) (*functions.Application, error) {
+func (e *Engine) toApplication(ctx context.Context, app *application, varHistory []string) (*functions.Application, error) {
 	f, err := findFunction(app.FunctionName)
 	if err != nil {
 		return nil, err
@@ -131,7 +194,11 @@ func toApplication(app *application) (*functions.Application, error) {
 
 	args := make([]functions.Argument, len(app.Arguments))
 	for i, arg := range app.Arguments {
-		args[i], err = toArgument(arg)
+		r, err := e.resolve(ctx, arg, varHistory)
+		if err != nil {
+			return nil, err
+		}
+		args[i], err = toArgument(r)
 		if err != nil {
 			return nil, err
 		}
@@ -209,18 +276,16 @@ func findFunction(funcName string) (*types.Function, error) {
 }
 
 func toArgument(arg *object) (functions.Argument, error) {
+	if arg == nil {
+		return nil, errors.New("unexpected nil argument passed to function")
+	}
+
 	switch arg.Type {
-	case typeApplication:
-		app, err := toApplication(arg.ApplicationValue)
-		if err != nil {
-			return nil, err
-		}
-		return app, nil
 	case typeNumber:
 		return functions.NewArgument(types.NewNumber(arg.NumberValue)), nil
 	case typeString:
 		return functions.NewArgument(types.NewString(arg.StringValue)), nil
 	default:
-		return nil, errors.New(fmt.Sprintf("unrecognized argument type %s", arg.Type))
+		return nil, errors.New(fmt.Sprintf("unexpected argument type %s", arg.Type))
 	}
 }

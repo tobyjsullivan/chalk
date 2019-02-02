@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/tobyjsullivan/chalk/resolver"
@@ -41,15 +42,6 @@ func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc variables.Vari
 }
 
 func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
-	resp, err := h.variablesSvc.GetVariables(ctx, &variables.GetVariablesRequest{
-		Keys: []string{"var1", "var2"},
-	})
-	if err != nil {
-		log.Println("Error from GetVariables:", err)
-	} else {
-		log.Printf("Received: %v", resp)
-	}
-
 	switch request.HttpMethod {
 	case http.MethodPost:
 		return h.doPost(ctx, request)
@@ -73,7 +65,21 @@ func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, e
 	}, nil
 }
 
+var rePathExecute = regexp.MustCompile("/execute")
+
 func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+	if rePathExecute.MatchString(req.Path) {
+		return h.doPostExecute(ctx, req)
+	}
+
+	return &ApiResponse{
+		StatusCode:      http.StatusNotFound,
+		Body:            []byte("404 Not Found"),
+		IsBase64Encoded: false,
+	}, nil
+}
+
+func (h *Handler) doPostExecute(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	body := req.Body
 	var query resolver.ResolveRequest
 	err := json.Unmarshal([]byte(body), &query)

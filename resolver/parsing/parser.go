@@ -37,16 +37,25 @@ func (p *Parser) parseEntity() (*ASTNode, error) {
 		}, nil
 	case tokenIdentifier:
 		fName := tok.Value
-		args, err := p.parseArguments()
-		if err != nil {
-			return nil, err
+		next := p.l.Peek()
+		if next != nil && next.Type == tokenPunctuation && next.Value == "(" {
+			// Arguments list implies function call
+			args, err := p.parseArguments()
+			if err != nil {
+				return nil, err
+			}
+
+			return &ASTNode{
+				FunctionCall: &FunctionCall{
+					FuncName:  fName,
+					Arguments: args,
+				},
+			}, nil
 		}
 
+		// Must be a variable
 		return &ASTNode{
-			FunctionCall: &FunctionCall{
-				FuncName:  fName,
-				Arguments: args,
-			},
+			VariableVal: &fName,
 		}, nil
 	default:
 		return nil, fmt.Errorf("expected Number, String, or Identifier; got: %+v", tok)
@@ -92,6 +101,7 @@ func (p *Parser) parseArguments() ([]*ASTNode, error) {
 type ASTNode struct {
 	StringVal    *string
 	NumberVal    *string
+	VariableVal  *string
 	FunctionCall *FunctionCall
 }
 

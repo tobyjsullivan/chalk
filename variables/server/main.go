@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net"
 	"os"
@@ -14,12 +13,36 @@ import (
 )
 
 // server is used to implement VariablesServer.
-type server struct{}
+type server struct {
+	varMap map[string]string
+}
 
 func (s *server) GetVariables(ctx context.Context, in *variables.GetVariablesRequest) (*variables.GetVariablesResponse, error) {
-	log.Printf("Recevied GetVariables request: %v", in)
-	// TODO
-	return nil, errors.New("not implemented")
+	log.Printf("Received GetVariables request: %v", in)
+	var out []*variables.GetVariablesResponse_VariableEntry
+	for _, k := range in.Keys {
+		f := s.varMap[k]
+		out = append(out, &variables.GetVariablesResponse_VariableEntry{
+			Key:     k,
+			Formula: f,
+		})
+	}
+
+	return &variables.GetVariablesResponse{
+		Values: out,
+	}, nil
+}
+
+func (s *server) SetVariable(ctx context.Context, in *variables.SetVariableRequest) (*variables.VoidResponse, error) {
+	key := in.Key
+	value := in.Formula
+	if value == "" {
+		delete(s.varMap, key)
+	} else {
+		s.varMap[key] = value
+	}
+
+	return &variables.VoidResponse{}, nil
 }
 
 func main() {
@@ -33,7 +56,9 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	variables.RegisterVariablesServer(s, &server{})
+	variables.RegisterVariablesServer(s, &server{
+		varMap: make(map[string]string),
+	})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

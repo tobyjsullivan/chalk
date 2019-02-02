@@ -44,3 +44,22 @@ func TestParse_Empty(t *testing.T) {
 		t.Fatalf("Expected ast to be nil, got %+v", ast)
 	}
 }
+
+func TestParse_Variable(t *testing.T) {
+	input := "var1"
+
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if ast == nil {
+		t.Fatalf("Expected ast, got nil")
+	}
+
+	if val := *ast.VariableVal; val != "var1" {
+		t.Errorf("Expected `var1`; got %s", val)
+	}
+}

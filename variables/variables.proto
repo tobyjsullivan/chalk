@@ -4,6 +4,7 @@ package variables;
 
 service Variables {
     rpc GetVariables (GetVariablesRequest) returns (GetVariablesResponse) {}
+    rpc SetVariable (SetVariableRequest) returns (VoidResponse) {}
 }
 
 message GetVariablesRequest {
@@ -18,3 +19,10 @@ message GetVariablesResponse {
 
     repeated VariableEntry values = 1;
 }
+
+message SetVariableRequest {
+    string key = 1;
+    string formula = 2;
+}
+
+message VoidResponse {}

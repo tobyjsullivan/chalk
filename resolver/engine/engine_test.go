@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/tobyjsullivan/chalk/resolver/rpc"
+	rpc "github.com/tobyjsullivan/chalk/resolver"
 )
 
 func TestQuery(t *testing.T) {
