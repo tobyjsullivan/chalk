@@ -200,6 +200,8 @@ func findFunction(funcName string) (*types.Function, error) {
 		return std.Sum, nil
 	case "concatenate":
 		return std.Concatenate, nil
+	case "love":
+		return std.Love, nil
 	default:
 		return nil, errors.New("function not found")
 	}
