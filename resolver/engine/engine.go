@@ -3,13 +3,14 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/resolver/functions"
 	"github.com/tobyjsullivan/chalk/resolver/lib/std"
 	"github.com/tobyjsullivan/chalk/resolver/parsing"
 	"github.com/tobyjsullivan/chalk/resolver/types"
-	"strconv"
-	"strings"
 )
 
 const (

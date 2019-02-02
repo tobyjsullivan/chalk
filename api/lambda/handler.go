@@ -1,13 +1,14 @@
 package lambda
 
 import (
+	"log"
+	"os"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/tobyjsullivan/chalk/api"
 	resolverRpc "github.com/tobyjsullivan/chalk/resolver/rpc"
 	"github.com/tobyjsullivan/chalk/variables"
 	"google.golang.org/grpc"
-	"log"
-	"os"
 )
 
 func main() {

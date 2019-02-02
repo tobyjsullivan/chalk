@@ -1,8 +1,9 @@
 package functions
 
 import (
-	"github.com/tobyjsullivan/chalk/resolver/types"
 	"testing"
+
+	"github.com/tobyjsullivan/chalk/resolver/types"
 )
 
 func TestApplication_Resolve(t *testing.T) {

@@ -1,8 +1,9 @@
 package std
 
 import (
-	"github.com/tobyjsullivan/chalk/resolver/types"
 	"testing"
+
+	"github.com/tobyjsullivan/chalk/resolver/types"
 )
 
 func TestConcatenate_Handler(t *testing.T) {

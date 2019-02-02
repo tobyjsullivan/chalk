@@ -4,12 +4,13 @@ package main
 
 import (
 	"context"
-	"github.com/tobyjsullivan/chalk/resolver"
-	"github.com/tobyjsullivan/chalk/resolver/engine"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
+
+	"github.com/tobyjsullivan/chalk/resolver"
+	"github.com/tobyjsullivan/chalk/resolver/engine"
+	"google.golang.org/grpc"
 )
 
 // server is used to implement ResolverServer.

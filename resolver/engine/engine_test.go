@@ -1,8 +1,9 @@
 package engine
 
 import (
-	"github.com/tobyjsullivan/chalk/resolver/rpc"
 	"testing"
+
+	"github.com/tobyjsullivan/chalk/resolver/rpc"
 )
 
 func TestQuery(t *testing.T) {

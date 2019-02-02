@@ -3,11 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"github.com/tobyjsullivan/chalk/resolver"
-	"github.com/tobyjsullivan/chalk/variables"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/tobyjsullivan/chalk/resolver"
+	"github.com/tobyjsullivan/chalk/variables"
 )
 
 const allowedOrigin = "*"

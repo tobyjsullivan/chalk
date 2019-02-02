@@ -5,11 +5,12 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/tobyjsullivan/chalk/variables"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
+
+	"github.com/tobyjsullivan/chalk/variables"
+	"google.golang.org/grpc"
 )
 
 // server is used to implement VariablesServer.

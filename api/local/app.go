@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/tobyjsullivan/chalk/api"
-	"github.com/tobyjsullivan/chalk/resolver"
-	"github.com/tobyjsullivan/chalk/variables"
-	"google.golang.org/grpc"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/tobyjsullivan/chalk/api"
+	"github.com/tobyjsullivan/chalk/resolver"
+	"github.com/tobyjsullivan/chalk/variables"
+	"google.golang.org/grpc"
 )
 
 type handler struct {

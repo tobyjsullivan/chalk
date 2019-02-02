@@ -3,6 +3,7 @@ package std
 import (
 	"errors"
 	"fmt"
+
 	"github.com/tobyjsullivan/chalk/resolver/types"
 )
 
