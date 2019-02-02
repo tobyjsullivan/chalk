@@ -1,0 +1,18 @@
+version: '3'
+services:
+  api:
+    environment:
+      RESOLVER_SVC: 'resolver-svc:8082'
+      VARIABLES_SVC: 'variables-svc:8081'
+    image: chalk-api
+    ports:
+      - "8080:8080"
+  resolver-svc:
+    environment:
+      PORT: '8082'
+      VARIABLES_SVC: 'variables-svc:8081'
+    image: chalk-resolver-svc
+  variables-svc:
+    environment:
+      PORT: '8081'
+    image: chalk-variables-svc

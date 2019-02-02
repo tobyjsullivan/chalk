@@ -59,6 +59,8 @@ func main() {
 	variables.RegisterVariablesServer(s, &server{
 		varMap: make(map[string]string),
 	})
+
+	log.Println("Starting server on", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

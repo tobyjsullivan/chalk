@@ -1,0 +1,5 @@
+FROM alpine
+
+ADD build/resolver-svc ./
+
+ENTRYPOINT ["./resolver-svc"]
