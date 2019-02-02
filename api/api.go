@@ -15,6 +15,12 @@ import (
 const allowedOrigin = "*"
 const headerOrigin = "origin"
 
+
+var (
+	rePathExecute = regexp.MustCompile("^/execute$")
+	rePathSetVariable = regexp.MustCompile("^/variables$")
+)
+
 type ApiEvent struct {
 	Body       string            `json:"body"`
 	HttpMethod string            `json:"httpMethod"`
@@ -65,11 +71,11 @@ func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, e
 	}, nil
 }
 
-var rePathExecute = regexp.MustCompile("/execute")
-
 func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	if rePathExecute.MatchString(req.Path) {
 		return h.doPostExecute(ctx, req)
+	} else if rePathSetVariable.MatchString(req.Path) {
+		return h.doPostVariables(ctx, req)
 	}
 
 	return &ApiResponse{
@@ -117,6 +123,33 @@ func (h *Handler) doPostExecute(ctx context.Context, req *ApiEvent) (*ApiRespons
 		Body:            b,
 		IsBase64Encoded: false,
 	}, nil
+}
+
+func (h *Handler) doPostVariables(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+	var parsed setVariableRequest
+	if err := json.Unmarshal([]byte(req.Body), &parsed); err != nil {
+		return nil, err
+	}
+
+	_, err := h.variablesSvc.SetVariable(ctx, &variables.SetVariableRequest{
+		Key: parsed.VarName,
+		Formula: parsed.Formula,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApiResponse{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(req),
+		Body:            []byte("{}"),
+		IsBase64Encoded: false,
+	}, nil
+}
+
+type setVariableRequest struct {
+	VarName string `json:"varName"`
+	Formula string `json:"formula"`
 }
 
 type executionResult struct {

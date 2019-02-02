@@ -38,7 +38,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	resp, err := h.executionHandler.HandleRequest(ctx, req)
 	if err != nil {
-		log.Panicf("Error handling request: %v", err)
+		log.Printf("Error handling request: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
 	}
 
 	for k, v := range resp.Headers {

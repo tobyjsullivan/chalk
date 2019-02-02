@@ -18,7 +18,7 @@ variable "lambda_package" {
 
 // Some changes require a stage redeployment. That can be invoked by updating this version.
 variable "api_schema_version" {
-  default = "2"
+  default = "4"
 }
 
 variable "env" {
@@ -28,7 +28,7 @@ variable "env" {
 data "aws_region" "current" {}
 
 output "api_invoke_url" {
-  value = "${aws_api_gateway_deployment.api_deployment.invoke_url}${aws_api_gateway_resource.proxy.path}"
+  value = "${aws_api_gateway_deployment.api_deployment.invoke_url}"
 }
 
 output "executor_function_name" {

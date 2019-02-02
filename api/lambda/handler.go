@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/tobyjsullivan/chalk/api"
-	resolverRpc "github.com/tobyjsullivan/chalk/resolver/rpc"
+	resolverRpc "github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/variables"
 	"google.golang.org/grpc"
 )

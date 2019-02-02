@@ -69,39 +69,86 @@ resource "aws_api_gateway_rest_api" "api" {
   name       = "chalk-api-${random_id.handler_id.hex}"
 }
 
-resource "aws_api_gateway_resource" "proxy" {
+// X /execute
+resource "aws_api_gateway_resource" "execute" {
   rest_api_id = "${aws_api_gateway_rest_api.api.id}"
   parent_id   = "${aws_api_gateway_rest_api.api.root_resource_id}"
   path_part   = "execute"
 }
 
-resource "aws_api_gateway_method" "proxy" {
+// X /variables
+resource "aws_api_gateway_resource" "variables" {
+  rest_api_id = "${aws_api_gateway_rest_api.api.id}"
+  parent_id   = "${aws_api_gateway_rest_api.api.root_resource_id}"
+  path_part   = "variables"
+}
+
+// POST /execute
+resource "aws_api_gateway_method" "post_execute" {
   rest_api_id   = "${aws_api_gateway_rest_api.api.id}"
-  resource_id   = "${aws_api_gateway_resource.proxy.id}"
+  resource_id   = "${aws_api_gateway_resource.execute.id}"
   http_method   = "POST"
   authorization = "NONE"
 }
 
-resource "aws_api_gateway_integration" "lambda" {
+// POST /variables
+resource "aws_api_gateway_method" "post_variables" {
+  rest_api_id   = "${aws_api_gateway_rest_api.api.id}"
+  resource_id   = "${aws_api_gateway_resource.variables.id}"
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+// OPTIONS /execute
+resource "aws_api_gateway_method" "options_execute" {
+  rest_api_id   = "${aws_api_gateway_rest_api.api.id}"
+  resource_id   = "${aws_api_gateway_resource.execute.id}"
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+// OPTIONS /variables
+resource "aws_api_gateway_method" "options_variables" {
+  rest_api_id   = "${aws_api_gateway_rest_api.api.id}"
+  resource_id   = "${aws_api_gateway_resource.variables.id}"
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "lambda_post_execute" {
   rest_api_id = "${aws_api_gateway_rest_api.api.id}"
-  resource_id = "${aws_api_gateway_method.proxy.resource_id}"
-  http_method = "${aws_api_gateway_method.proxy.http_method}"
+  resource_id = "${aws_api_gateway_method.post_execute.resource_id}"
+  http_method = "${aws_api_gateway_method.post_execute.http_method}"
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = "${aws_lambda_function.executor.invoke_arn}"
 }
 
-resource "aws_api_gateway_method" "proxy_options" {
-  rest_api_id   = "${aws_api_gateway_rest_api.api.id}"
-  resource_id   = "${aws_api_gateway_resource.proxy.id}"
-  http_method   = "OPTIONS"
-  authorization = "NONE"
-}
-resource "aws_api_gateway_integration" "lambda_options" {
+resource "aws_api_gateway_integration" "lambda_options_execute" {
   rest_api_id = "${aws_api_gateway_rest_api.api.id}"
-  resource_id = "${aws_api_gateway_method.proxy_options.resource_id}"
-  http_method = "${aws_api_gateway_method.proxy_options.http_method}"
+  resource_id = "${aws_api_gateway_method.options_execute.resource_id}"
+  http_method = "${aws_api_gateway_method.options_execute.http_method}"
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "${aws_lambda_function.executor.invoke_arn}"
+}
+
+resource "aws_api_gateway_integration" "lambda_post_variables" {
+  rest_api_id = "${aws_api_gateway_rest_api.api.id}"
+  resource_id = "${aws_api_gateway_method.post_variables.resource_id}"
+  http_method = "${aws_api_gateway_method.post_variables.http_method}"
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "${aws_lambda_function.executor.invoke_arn}"
+}
+
+resource "aws_api_gateway_integration" "lambda_options_variables" {
+  rest_api_id = "${aws_api_gateway_rest_api.api.id}"
+  resource_id = "${aws_api_gateway_method.options_variables.resource_id}"
+  http_method = "${aws_api_gateway_method.options_variables.http_method}"
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
@@ -109,7 +156,12 @@ resource "aws_api_gateway_integration" "lambda_options" {
 }
 
 resource "aws_api_gateway_deployment" "api_deployment" {
-  depends_on = ["aws_api_gateway_integration.lambda", "aws_api_gateway_integration.lambda_options"]
+  depends_on = [
+    "aws_api_gateway_integration.lambda_post_execute",
+    "aws_api_gateway_integration.lambda_options_execute",
+    "aws_api_gateway_integration.lambda_post_variables",
+    "aws_api_gateway_integration.lambda_options_variables",
+  ]
 
   rest_api_id = "${aws_api_gateway_rest_api.api.id}"
   stage_name  = "${var.env}"
