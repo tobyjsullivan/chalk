@@ -24,8 +24,8 @@ data "aws_availability_zones" "available" {}
 //  }
 //}
 
-resource "aws_ecr_repository" "variables_svc" {
-  name = "chalk-variables-svc"
+resource "aws_ecr_repository" "monolith_svc" {
+  name = "chalk-monolith-svc"
 }
 
 resource "aws_ecr_repository" "resolver_svc" {

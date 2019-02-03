@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"testing"
 
 	rpc "github.com/tobyjsullivan/chalk/resolver"
@@ -11,7 +12,8 @@ func TestQuery(t *testing.T) {
 		Formula: "SUM(1, 2, 3)",
 	}
 
-	res := Query(req)
+	e := NewEngine(nil)
+	res := e.Query(context.Background(), req)
 
 	if res.Error != "" {
 		t.Fatalf("Unexpected error response: %s", res.Error)
@@ -31,7 +33,8 @@ func TestQueryNested(t *testing.T) {
 		Formula: "CONCATENATE(\"Hello, \", CONCATENATE(\"World\", \"!\"))",
 	}
 
-	res := Query(req)
+	e := NewEngine(nil)
+	res := e.Query(context.Background(), req)
 
 	if res.Error != "" {
 		t.Fatalf("Unexpected error response: %s", res.Error)

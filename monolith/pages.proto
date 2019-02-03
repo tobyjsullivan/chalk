@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package monolith;
+
+import "domain.proto";
+
+service Pages {
+    rpc CreatePage (CreatePageRequest) returns (CreatePageResponse) {}
+    rpc GetPages (GetPagesRequest) returns (GetPagesResponse) {}
+}
+
+message CreatePageRequest {
+
+}
+
+message CreatePageResponse {
+    Error error = 1;
+    Page page = 2;
+}
+
+message GetPagesRequest {
+    repeated string page_ids = 1;
+}
+
+message GetPagesResponse {
+    Error error = 1;
+    repeated Page pages = 2;
+}

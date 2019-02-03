@@ -10,7 +10,7 @@ import (
 
 	"github.com/tobyjsullivan/chalk/api"
 	"github.com/tobyjsullivan/chalk/resolver"
-	"github.com/tobyjsullivan/chalk/variables"
+	"github.com/tobyjsullivan/chalk/monolith"
 	"google.golang.org/grpc"
 )
 
@@ -74,7 +74,7 @@ func main() {
 		Handler: &handler{
 			executionHandler: api.NewHandler(
 				resolver.NewResolverClient(resolverConn),
-				variables.NewVariablesClient(varsConn),
+				monolith.NewVariablesClient(varsConn),
 			),
 		},
 		ReadTimeout:    2 * time.Second,

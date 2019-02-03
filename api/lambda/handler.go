@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/tobyjsullivan/chalk/api"
 	resolverRpc "github.com/tobyjsullivan/chalk/resolver"
-	"github.com/tobyjsullivan/chalk/variables"
+	"github.com/tobyjsullivan/chalk/monolith"
 	"google.golang.org/grpc"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	}
 	defer varsConn.Close()
 
-	handler := api.NewHandler(resolverRpc.NewResolverClient(resolverConn), variables.NewVariablesClient(varsConn))
+	handler := api.NewHandler(resolverRpc.NewResolverClient(resolverConn), monolith.NewVariablesClient(varsConn))
 
 	lambda.Start(handler.HandleRequest)
 }

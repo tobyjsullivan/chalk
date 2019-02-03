@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package monolith;
+
+message Error {
+    string message = 1;
+}
+
+message Session {
+    string session_id = 1;
+    repeated string pages = 2;
+}
+
+message Page {
+    string page_id = 1;
+    repeated string variables = 2;
+}
+
+message Variable {
+    string variable_id = 1;
+    string name = 2;
+    string formula = 3;
+}

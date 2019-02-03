@@ -39,8 +39,8 @@ output "executor_function_name" {
   value = "${aws_lambda_function.executor.function_name}"
 }
 
-output "repo_variables_svc_url" {
-  value = "${aws_ecr_repository.variables_svc.repository_url}"
+output "repo_monolith_svc_url" {
+  value = "${aws_ecr_repository.monolith_svc.repository_url}"
 }
 
 output "repo_resolver_svc_url" {

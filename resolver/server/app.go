@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/tobyjsullivan/chalk/variables"
+	"github.com/tobyjsullivan/chalk/monolith"
 
 	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/resolver/engine"
@@ -47,7 +47,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 	resolver.RegisterResolverServer(s, &server{
-		engine: engine.NewEngine(variables.NewVariablesClient(varsConn)),
+		engine: engine.NewEngine(monolith.NewVariablesClient(varsConn)),
 	})
 
 	log.Println("Starting server on", lis.Addr())

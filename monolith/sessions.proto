@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package monolith;
+
+import "domain.proto";
+
+service Sessions {
+    rpc GetSession (GetSessionRequest) returns (GetSessionResponse) {}
+}
+
+message GetSessionRequest {
+    string session = 1;
+}
+
+message GetSessionResponse {
+    Error error = 1;
+    Session session = 2;
+}

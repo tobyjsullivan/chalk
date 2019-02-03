@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tobyjsullivan/chalk/variables"
+	"github.com/tobyjsullivan/chalk/monolith"
 
 	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/resolver/functions"
@@ -37,10 +37,10 @@ type object struct {
 }
 
 type Engine struct {
-	varSvc variables.VariablesClient
+	varSvc monolith.VariablesClient
 }
 
-func NewEngine(varSvc variables.VariablesClient) *Engine {
+func NewEngine(varSvc monolith.VariablesClient) *Engine {
 	return &Engine{
 		varSvc: varSvc,
 	}
@@ -150,7 +150,7 @@ func (e *Engine) resolve(ctx context.Context, formula *object, varHistory []stri
 		}
 
 		// Lookup formula
-		resp, err := e.varSvc.GetVariables(ctx, &variables.GetVariablesRequest{
+		resp, err := e.varSvc.GetVariables(ctx, &monolith.GetVariablesRequest{
 			Keys: []string{varName},
 		})
 		if err != nil {

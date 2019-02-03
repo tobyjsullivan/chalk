@@ -3,7 +3,7 @@ IN_API_LAMBDA_SRC := ./api/lambda
 IN_API_LOCAL_SRC := ./api/local
 BUILD_DIR := build
 OUT_RESOLVE_SVC := $(BUILD_DIR)/resolver-svc
-OUT_VARS_SVC := $(BUILD_DIR)/variables-svc
+OUT_MONOLITH_SVC := $(BUILD_DIR)/monolith-svc
 API_BUILD_LOCAL_EXE := api-local
 API_BUILD_LOCAL := $(BUILD_DIR)/$(API_BUILD_LOCAL_EXE)
 API_BUILD_LAMBDA_EXE := api
@@ -22,9 +22,9 @@ $(API_BUILD_LOCAL): $(GO_FILES)
 $(OUT_API_PACKAGE): $(API_BUILD_LAMBDA)
 	cd $(BUILD_DIR) && zip ../$(OUT_API_PACKAGE) $(API_BUILD_LAMBDA_EXE)
 
-$(OUT_VARS_SVC): $(GO_FILES)
+$(OUT_MONOLITH_SVC): $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
-	GOOS=linux go build -o $(OUT_VARS_SVC) ./variables/server
+	GOOS=linux go build -o $(OUT_MONOLITH_SVC) ./monolith/server
 
 $(OUT_RESOLVE_SVC): $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
@@ -40,10 +40,10 @@ $(DOCKER_IMAGES)/resolver-svc.tar.gz: docker/Dockerfile.resolver-svc $(OUT_RESOL
 	docker build -f docker/Dockerfile.resolver-svc -t chalk-resolver-svc .
 	docker save chalk-resolver-svc:latest > $(DOCKER_IMAGES)/resolver-svc.tar.gz
 
-$(DOCKER_IMAGES)/variables-svc.tar.gz: docker/Dockerfile.variables-svc $(OUT_VARS_SVC)
+$(DOCKER_IMAGES)/monolith-svc.tar.gz: docker/Dockerfile.monolith-svc $(OUT_MONOLITH_SVC)
 	mkdir -p $(DOCKER_IMAGES)
-	docker build -f docker/Dockerfile.variables-svc -t chalk-variables-svc .
-	docker save chalk-variables-svc:latest > $(DOCKER_IMAGES)/variables-svc.tar.gz
+	docker build -f docker/Dockerfile.monolith-svc -t chalk-monolith-svc .
+	docker save chalk-monolith-svc:latest > $(DOCKER_IMAGES)/monolith-svc.tar.gz
 
 .PHONY: apply clean compose deploy docker generate init push-docker
 
@@ -57,11 +57,11 @@ clean:
 compose: docker
 	docker-compose up
 
-deploy: $(OUT_API_PACKAGE) $(OUT_RESOLVE_SVC) $(OUT_VARS_SVC) apply push-docker
+deploy: $(OUT_API_PACKAGE) $(OUT_RESOLVE_SVC) $(OUT_MONOLITH_SVC) apply push-docker
 
-docker: $(DOCKER_IMAGES)/resolver-svc.tar.gz $(DOCKER_IMAGES)/variables-svc.tar.gz $(DOCKER_IMAGES)/api.tar.gz
+docker: $(DOCKER_IMAGES)/resolver-svc.tar.gz $(DOCKER_IMAGES)/monolith-svc.tar.gz $(DOCKER_IMAGES)/api.tar.gz
 	docker load < $(DOCKER_IMAGES)/resolver-svc.tar.gz
-	docker load < $(DOCKER_IMAGES)/variables-svc.tar.gz
+	docker load < $(DOCKER_IMAGES)/monolith-svc.tar.gz
 	docker load < $(DOCKER_IMAGES)/api.tar.gz
 
 dump-test:
@@ -77,8 +77,8 @@ init:
 
 push-docker: docker
 	$$(aws ecr get-login --region $$(cd ./infra && terraform output aws_region) --no-include-email)
-	docker tag chalk-variables-svc "$$(cd ./infra && terraform output repo_variables_svc_url):latest"
-	docker push "$$(cd ./infra && terraform output repo_variables_svc_url):latest"
+	docker tag chalk-monolith-svc "$$(cd ./infra && terraform output repo_monolith_svc_url):latest"
+	docker push "$$(cd ./infra && terraform output repo_monolith_svc_url):latest"
 	docker tag chalk-resolver-svc "$$(cd ./infra && terraform output repo_resolver_svc_url):latest"
 	docker push "$$(cd ./infra && terraform output repo_resolver_svc_url):latest"
 	docker tag chalk-api "$$(cd ./infra && terraform output repo_api_url):latest"

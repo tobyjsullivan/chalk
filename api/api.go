@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/tobyjsullivan/chalk/resolver"
-	"github.com/tobyjsullivan/chalk/variables"
+	"github.com/tobyjsullivan/chalk/monolith"
 )
 
 const allowedOrigin = "*"
@@ -37,10 +37,10 @@ type ApiResponse struct {
 
 type Handler struct {
 	resolverSvc  resolver.ResolverClient
-	variablesSvc variables.VariablesClient
+	variablesSvc monolith.VariablesClient
 }
 
-func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc variables.VariablesClient) *Handler {
+func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc monolith.VariablesClient) *Handler {
 	return &Handler{
 		resolverSvc:  resolverSvc,
 		variablesSvc: variablesSvc,
@@ -131,7 +131,7 @@ func (h *Handler) doPostVariables(ctx context.Context, req *ApiEvent) (*ApiRespo
 		return nil, err
 	}
 
-	_, err := h.variablesSvc.SetVariable(ctx, &variables.SetVariableRequest{
+	_, err := h.variablesSvc.SetVariable(ctx, &monolith.SetVariableRequest{
 		Key: parsed.VarName,
 		Formula: parsed.Formula,
 	})
