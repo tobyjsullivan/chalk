@@ -27,10 +27,26 @@ variable "env" {
 
 data "aws_region" "current" {}
 
+output "aws_region" {
+  value = "${data.aws_region.current.id}"
+}
+
 output "api_invoke_url" {
   value = "${aws_api_gateway_deployment.api_deployment.invoke_url}"
 }
 
 output "executor_function_name" {
   value = "${aws_lambda_function.executor.function_name}"
+}
+
+output "repo_variables_svc_url" {
+  value = "${aws_ecr_repository.variables_svc.repository_url}"
+}
+
+output "repo_resolver_svc_url" {
+  value = "${aws_ecr_repository.resolver_svc.repository_url}"
+}
+
+output "repo_api_url" {
+  value = "${aws_ecr_repository.api.repository_url}"
 }

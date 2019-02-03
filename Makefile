@@ -19,7 +19,7 @@ $(API_BUILD_LOCAL): $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(API_BUILD_LOCAL) $(IN_API_LOCAL_SRC)
 
-$(OUT_API_PACKAGE): $(API_BUILD)
+$(OUT_API_PACKAGE): $(API_BUILD_LAMBDA)
 	cd $(BUILD_DIR) && zip ../$(OUT_API_PACKAGE) $(API_BUILD_LAMBDA_EXE)
 
 $(OUT_VARS_SVC): $(GO_FILES)
@@ -45,7 +45,7 @@ $(DOCKER_IMAGES)/variables-svc.tar.gz: docker/Dockerfile.variables-svc $(OUT_VAR
 	docker build -f docker/Dockerfile.variables-svc -t chalk-variables-svc .
 	docker save chalk-variables-svc:latest > $(DOCKER_IMAGES)/variables-svc.tar.gz
 
-.PHONY: apply clean compose deploy docker generate init services
+.PHONY: apply clean compose deploy docker generate init push-docker
 
 apply:
 	cd ./infra && terraform apply
@@ -57,7 +57,7 @@ clean:
 compose: docker
 	docker-compose up
 
-deploy: $(OUT_API_PACKAGE) $(OUT_RESOLVE_SVC) $(OUT_VARS_SVC) apply
+deploy: $(OUT_API_PACKAGE) $(OUT_RESOLVE_SVC) $(OUT_VARS_SVC) apply push-docker
 
 docker: $(DOCKER_IMAGES)/resolver-svc.tar.gz $(DOCKER_IMAGES)/variables-svc.tar.gz $(DOCKER_IMAGES)/api.tar.gz
 	docker load < $(DOCKER_IMAGES)/resolver-svc.tar.gz
@@ -74,3 +74,12 @@ init:
 	go get ./...
 	go get golang.org/x/sys/unix
 	cd ./infra && terraform init
+
+push-docker: docker
+	$$(aws ecr get-login --region $$(cd ./infra && terraform output aws_region) --no-include-email)
+	docker tag chalk-variables-svc "$$(cd ./infra && terraform output repo_variables_svc_url):latest"
+	docker push "$$(cd ./infra && terraform output repo_variables_svc_url):latest"
+	docker tag chalk-resolver-svc "$$(cd ./infra && terraform output repo_resolver_svc_url):latest"
+	docker push "$$(cd ./infra && terraform output repo_resolver_svc_url):latest"
+	docker tag chalk-api "$$(cd ./infra && terraform output repo_api_url):latest"
+	docker push "$$(cd ./infra && terraform output repo_api_url):latest"
