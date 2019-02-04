@@ -1,5 +1,5 @@
 FROM alpine
 
-ADD build/variables-svc ./
+ADD build/monolith-svc ./
 
-ENTRYPOINT ["./variables-svc"]
+ENTRYPOINT ["./monolith-svc"]

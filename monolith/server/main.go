@@ -26,10 +26,13 @@ func main() {
 	}
 	s := grpc.NewServer()
 
+	log.Println("Registering VariablesServer...")
 	monolith.RegisterVariablesServer(s, &variablesServer{
 		varMap: make(map[string]string),
 	})
+	log.Println("Registering SessionsServer...")
 	monolith.RegisterSessionsServer(s, &sessionsServer{})
+	log.Println("Registering PagesServer...")
 	monolith.RegisterPagesServer(s, &pagesServer{})
 
 	log.Println("Starting server on", lis.Addr())

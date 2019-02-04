@@ -54,7 +54,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf $(DOCKER_IMAGES)
 
-compose: docker
+compose: docker-compose.yml docker
 	docker-compose up
 
 deploy: $(OUT_API_PACKAGE) $(OUT_RESOLVE_SVC) $(OUT_MONOLITH_SVC) apply push-docker
