@@ -12,16 +12,23 @@ var Concatenate = &types.Function{
 	Variadic:   true,
 	Returns:    types.TString,
 	Handler: func(params ...types.Object) (types.Object, error) {
-		var acc string
+		strings := make([]string, len(params))
 		for i, p := range params {
 			s, err := p.AsString()
 			if err != nil {
 				return nil, errors.New(fmt.Sprintf("unexpected param type %d: %s", i, err))
 			}
-
-			acc += s.Raw()
+			strings[i] = s.Raw()
 		}
 
-		return types.NewString(acc), nil
+		return types.NewString(concatenate(strings...)), nil
 	},
+}
+
+func concatenate(in ...string) string {
+	var acc string
+	for _, s := range in {
+		acc += s
+	}
+	return acc
 }

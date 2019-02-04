@@ -21,8 +21,10 @@ var Love = &types.Function{
 			return nil, errors.New(fmt.Sprintf("expected string, got: %s", err))
 		}
 
-		out := "I love you, " + s.Raw() + "!"
-
-		return types.NewString(out), nil
+		return types.NewString(love(s.Raw())), nil
 	},
+}
+
+func love(name string) string {
+	return "I love you, " + name + "!"
 }
