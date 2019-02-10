@@ -1,8 +1,9 @@
 package std
 
 import (
-	"github.com/tobyjsullivan/chalk/resolver/engine/types"
 	"testing"
+
+	"github.com/tobyjsullivan/chalk/resolver/engine/types"
 )
 
 func TestSum_Handler(t *testing.T) {

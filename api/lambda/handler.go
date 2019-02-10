@@ -6,8 +6,8 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/tobyjsullivan/chalk/api"
-	resolverRpc "github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/monolith"
+	resolverRpc "github.com/tobyjsullivan/chalk/resolver"
 	"google.golang.org/grpc"
 )
 

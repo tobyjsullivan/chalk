@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/tobyjsullivan/chalk/api"
-	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/monolith"
+	"github.com/tobyjsullivan/chalk/resolver"
 	"google.golang.org/grpc"
 )
 

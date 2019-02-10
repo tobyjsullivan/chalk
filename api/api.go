@@ -8,16 +8,15 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/monolith"
+	"github.com/tobyjsullivan/chalk/resolver"
 )
 
 const allowedOrigin = "*"
 const headerOrigin = "origin"
 
-
 var (
-	rePathExecute = regexp.MustCompile("^/execute$")
+	rePathExecute     = regexp.MustCompile("^/execute$")
 	rePathSetVariable = regexp.MustCompile("^/variables$")
 )
 
@@ -132,7 +131,7 @@ func (h *Handler) doPostVariables(ctx context.Context, req *ApiEvent) (*ApiRespo
 	}
 
 	_, err := h.variablesSvc.SetVariable(ctx, &monolith.SetVariableRequest{
-		Key: parsed.VarName,
+		Key:     parsed.VarName,
 		Formula: parsed.Formula,
 	})
 	if err != nil {

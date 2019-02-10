@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/tobyjsullivan/chalk/monolith"
 	"log"
+
+	"github.com/tobyjsullivan/chalk/monolith"
 )
 
 // variablesServer is used to implement VariablesServer.
@@ -17,7 +18,7 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 	for _, k := range in.Keys {
 		f := s.varMap[k]
 		out = append(out, &monolith.Variable{
-			Name:     k,
+			Name:    k,
 			Formula: f,
 		})
 	}
@@ -37,8 +38,6 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 	}
 
 	return &monolith.SetVariableResponse{
-		Variable: &monolith.Variable{
-
-		},
+		Variable: &monolith.Variable{},
 	}, nil
 }
