@@ -176,7 +176,7 @@ func isDigit(ch rune) bool {
 }
 
 func isPunctuation(ch rune) bool {
-	return strings.ContainsRune("(),", ch)
+	return strings.ContainsRune("(){}[],=", ch)
 }
 
 func isIdentStart(ch rune) bool {

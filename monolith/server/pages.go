@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/tobyjsullivan/chalk/monolith"
 )
 
@@ -25,4 +26,3 @@ func (*pagesServer) GetPages(context.Context, *monolith.GetPagesRequest) (*monol
 		},
 	}, nil
 }
-

@@ -18,10 +18,32 @@ message ResolveResponse {
 enum ObjectType {
     STRING = 0;
     NUMBER = 1;
+    LIST = 2;
+    RECORD = 3;
 }
 
 message Object {
     ObjectType type = 1;
-    string stringValue = 2;
-    double numberValue = 3;
+    string string_value = 2;
+    double number_value = 3;
+    List list_value = 4;
+    Record record_value = 5;
+    Tuple tuple_value = 6;
+}
+
+message List {
+    repeated Object elements = 1;
+}
+
+message Tuple {
+    repeated Object elements = 2;
+}
+
+message Record {
+    repeated RecordProperty properties = 1;
+}
+
+message RecordProperty {
+    string name = 1;
+    Object value = 2;
 }

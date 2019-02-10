@@ -1,4 +1,5 @@
 GO_FILES := $(shell find . -name '*.go')
+PROTO_FILES := $(shell find . -name '*.proto')
 IN_API_LAMBDA_SRC := ./api/lambda
 IN_API_LOCAL_SRC := ./api/local
 BUILD_DIR := build
@@ -11,22 +12,22 @@ API_BUILD_LAMBDA := $(BUILD_DIR)/$(API_BUILD_LAMBDA_EXE)
 OUT_API_PACKAGE := $(BUILD_DIR)/executor_lambda.zip
 DOCKER_IMAGES := ./docker/images
 
-$(API_BUILD_LAMBDA): $(GO_FILES)
+$(API_BUILD_LAMBDA): precompile $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(API_BUILD_LAMBDA) $(IN_API_LAMBDA_SRC)
 
-$(API_BUILD_LOCAL): $(GO_FILES)
+$(API_BUILD_LOCAL): precompile $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(API_BUILD_LOCAL) $(IN_API_LOCAL_SRC)
 
 $(OUT_API_PACKAGE): $(API_BUILD_LAMBDA)
 	cd $(BUILD_DIR) && zip ../$(OUT_API_PACKAGE) $(API_BUILD_LAMBDA_EXE)
 
-$(OUT_MONOLITH_SVC): $(GO_FILES)
+$(OUT_MONOLITH_SVC): precompile $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(OUT_MONOLITH_SVC) ./monolith/server
 
-$(OUT_RESOLVE_SVC): $(GO_FILES)
+$(OUT_RESOLVE_SVC): precompile $(GO_FILES)
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(OUT_RESOLVE_SVC) ./resolver/server
 
@@ -45,7 +46,7 @@ $(DOCKER_IMAGES)/monolith-svc.tar.gz: docker/Dockerfile.monolith-svc $(OUT_MONOL
 	docker build -f docker/Dockerfile.monolith-svc -t chalk-monolith-svc .
 	docker save chalk-monolith-svc:latest > $(DOCKER_IMAGES)/monolith-svc.tar.gz
 
-.PHONY: apply clean compose deploy docker generate init push-docker
+.PHONY: apply clean compose deploy docker format generate init push-docker precompile test
 
 apply:
 	cd ./infra && terraform apply
@@ -67,7 +68,11 @@ docker: $(DOCKER_IMAGES)/resolver-svc.tar.gz $(DOCKER_IMAGES)/monolith-svc.tar.g
 dump-test:
 	echo $(GO_FILES)
 
-generate:
+format: $(GO_FILES)
+	go fmt ./...
+	goimports -w ./
+
+generate: $(PROTO_FILES) $(GO_FILES)
 	go generate ./...
 
 init:
@@ -83,3 +88,8 @@ push-docker: docker
 	docker push "$$(cd ./infra && terraform output repo_resolver_svc_url):latest"
 	docker tag chalk-api "$$(cd ./infra && terraform output repo_api_url):latest"
 	docker push "$$(cd ./infra && terraform output repo_api_url):latest"
+
+precompile: format generate
+
+test:
+	go test ./...
