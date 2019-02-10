@@ -7,14 +7,14 @@ import (
 	"github.com/tobyjsullivan/chalk/resolver/engine/types"
 )
 
-var Concatenate = func(params []types.Object) (types.Object, error) {
-	strings := make([]string, len(params))
-	for i, p := range params {
-		s, err := p.AsString()
+var Concatenate = func(input []*types.Object) (*types.Object, error) {
+	strings := make([]string, len(input))
+	var err error
+	for i, p := range input {
+		strings[i], err = p.ToString()
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("unexpected param type #%d: %s", i, err))
 		}
-		strings[i] = s.Raw()
 	}
 
 	return types.NewString(concatenate(strings...)), nil

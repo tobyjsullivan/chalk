@@ -20,7 +20,6 @@ enum ObjectType {
     NUMBER = 1;
     LIST = 2;
     RECORD = 3;
-    TUPLE = 4;
 }
 
 message Object {

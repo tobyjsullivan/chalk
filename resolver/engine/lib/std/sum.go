@@ -7,15 +7,15 @@ import (
 	"github.com/tobyjsullivan/chalk/resolver/engine/types"
 )
 
-var Sum = func(params []types.Object) (types.Object, error) {
+var Sum = func(params []*types.Object) (*types.Object, error) {
 	numbers := make([]float64, len(params))
 	for i, p := range params {
-		cur, err := p.AsNumber()
+		cur, err := p.ToNumber()
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("unexpected param type %d: %s", i, err))
 		}
 
-		numbers[i] = cur.Raw()
+		numbers[i] = cur
 	}
 
 	return types.NewNumber(sum(numbers...)), nil

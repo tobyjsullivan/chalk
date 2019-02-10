@@ -7,7 +7,7 @@ import (
 )
 
 func TestSum_Handler(t *testing.T) {
-	result, err := Sum([]types.Object{
+	result, err := Sum([]*types.Object{
 		types.NewNumber(14),
 		types.NewNumber(66),
 		types.NewNumber(55.6),
@@ -17,12 +17,12 @@ func TestSum_Handler(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	s, err := result.AsNumber()
+	s, err := result.ToNumber()
 	if err != nil {
 		t.Errorf("Unexpected cast error: %v", err)
 	}
 
-	if raw := s.Raw(); raw != 135.6 {
+	if raw := s; raw != 135.6 {
 		t.Errorf("Unexpected result value: %f", raw)
 	}
 }

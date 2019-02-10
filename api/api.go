@@ -97,18 +97,9 @@ func (h *Handler) doPostExecute(ctx context.Context, req *ApiEvent) (*ApiRespons
 		return nil, err
 	}
 
-	var out executionResult
-	out.Error = result.Error
-	if result.Result != nil {
-		out.Result = &executionResultObject{}
-		switch result.Result.Type {
-		case resolver.ObjectType_STRING:
-			out.Result.Type = "string"
-			out.Result.StringValue = result.Result.StringValue
-		case resolver.ObjectType_NUMBER:
-			out.Result.Type = "number"
-			out.Result.NumberValue = result.Result.NumberValue
-		}
+	out, err := mapResolveResponse(result)
+	if err != nil {
+		return nil, err
 	}
 
 	b, err := json.Marshal(out)
@@ -149,17 +140,6 @@ func (h *Handler) doPostVariables(ctx context.Context, req *ApiEvent) (*ApiRespo
 type setVariableRequest struct {
 	VarName string `json:"varName"`
 	Formula string `json:"formula"`
-}
-
-type executionResult struct {
-	Result *executionResultObject `json:"result,omitempty'"`
-	Error  string                 `json:"error,omitempty"`
-}
-
-type executionResultObject struct {
-	Type        string  `json:"type"`
-	NumberValue float64 `json:"numberValue,omitempty"`
-	StringValue string  `json:"stringValue,omitempty"`
 }
 
 func normaliseHeaders(in map[string]string) map[string]string {

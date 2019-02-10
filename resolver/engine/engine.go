@@ -15,26 +15,6 @@ import (
 	"github.com/tobyjsullivan/chalk/resolver/engine/types"
 )
 
-const (
-	typeString      = "string"
-	typeNumber      = "number"
-	typeVariable    = "variable"
-	typeApplication = "application"
-)
-
-type application struct {
-	FunctionName string    `json:"function"`
-	Arguments    []*object `json:"arguments"`
-}
-
-type object struct {
-	Type             string       `json:"type"`
-	StringValue      string       `json:"stringValue,omitempty"`
-	NumberValue      float64      `json:"numberValue,omitempty"`
-	VariableName     string       `json:"variableName,omitempty"`
-	ApplicationValue *application `json:"applicationValue,omitempty"`
-}
-
 type Engine struct {
 	varSvc monolith.VariablesClient
 }
@@ -59,7 +39,7 @@ func (e *Engine) Query(ctx context.Context, request *resolver.ResolveRequest) *r
 	return toResult(result)
 }
 
-func parseFormula(formula string) (*object, error) {
+func parseFormula(formula string) (*types.Object, error) {
 	ast, err := parsing.Parse(formula)
 	if err != nil {
 		return nil, err
@@ -68,35 +48,37 @@ func parseFormula(formula string) (*object, error) {
 	return mapAst(ast)
 }
 
-func mapAst(ast *parsing.ASTNode) (*object, error) {
+func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 	if ast == nil {
 		return nil, nil
 	}
 	if ast.NumberVal != nil {
-		f, err := strconv.ParseFloat(*ast.NumberVal, 64)
+		n, err := strconv.ParseFloat(*ast.NumberVal, 64)
 		if err != nil {
 			return nil, err
 		}
-		return &object{
-			Type:        typeNumber,
-			NumberValue: f,
-		}, nil
+		return types.NewNumber(n), nil
 	} else if ast.StringVal != nil {
-		return &object{
-			Type:        typeString,
-			StringValue: *ast.StringVal,
-		}, nil
+		return types.NewString(*ast.StringVal), nil
 	} else if ast.TupleVal != nil {
-		// TODO
 		return nil, errors.New("tuple not handled")
 	} else if ast.ListVal != nil {
-		// TODO
-		return nil, errors.New("list not handled")
+		elements := ast.ListVal.Elements
+		elObjs := make([]*types.Object, len(elements))
+		var err error
+		for i, e := range elements {
+			elObjs[i], err = mapAst(e)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return types.NewList(elObjs), nil
 	} else if ast.RecordVal != nil {
 		// TODO
 		return nil, errors.New("record not handled")
 	} else if ast.FunctionCall != nil {
-		args := make([]*object, len(ast.FunctionCall.Argument.Elements))
+		args := make([]*types.Object, len(ast.FunctionCall.Argument.Elements))
 		for i, arg := range ast.FunctionCall.Argument.Elements {
 			var err error
 			args[i], err = mapAst(arg)
@@ -105,43 +87,41 @@ func mapAst(ast *parsing.ASTNode) (*object, error) {
 			}
 		}
 
-		return &object{
-			Type: typeApplication,
-			ApplicationValue: &application{
-				FunctionName: ast.FunctionCall.FuncName,
-				Arguments:    args,
-			},
-		}, nil
+		return types.NewApplication(ast.FunctionCall.FuncName, args), nil
 	} else if ast.VariableVal != nil {
-		return &object{
-			Type:         typeVariable,
-			VariableName: *ast.VariableVal,
-		}, nil
+		return types.NewVariable(*ast.VariableVal), nil
 	} else {
 		return nil, fmt.Errorf("unknown ast node: %v", ast)
 	}
 }
 
-func (e *Engine) resolve(ctx context.Context, formula *object, varHistory []string) (*object, error) {
+func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory []string) (*types.Object, error) {
 	if formula == nil {
 		return nil, nil
 	}
 
-	switch formula.Type {
-	case typeNumber:
+	switch formula.Type() {
+	case types.TypeNumber:
 		return formula, nil
-	case typeString:
+	case types.TypeString:
 		return formula, nil
-	case typeVariable:
-		return e.resolveVariable(ctx, formula.VariableName, varHistory)
-	case typeApplication:
-		return e.resolveApplication(ctx, formula.ApplicationValue, varHistory)
+	case types.TypeList:
+		return formula, nil
+	case types.TypeRecord:
+		return formula, nil
+	case types.TypeVariable:
+		v, _ := formula.ToVariable()
+		return e.resolveVariable(ctx, v, varHistory)
+	case types.TypeApplication:
+		a, _ := formula.ToApplication()
+		return e.resolveApplication(ctx, a, varHistory)
 	default:
-		return nil, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type))
+		return nil, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type()))
 	}
 }
 
-func (e *Engine) resolveVariable(ctx context.Context, varName string, varHistory []string) (*object, error) {
+func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, varHistory []string) (*types.Object, error) {
+	varName := variable.Name
 	// Check for cycles
 	for _, seen := range varHistory {
 		if seen == varName {
@@ -174,75 +154,89 @@ func (e *Engine) resolveVariable(ctx context.Context, varName string, varHistory
 	return e.resolve(ctx, o, newHist)
 }
 
-func (e *Engine) resolveApplication(ctx context.Context, app *application, varHistory []string) (*object, error) {
+func (e *Engine) resolveApplication(ctx context.Context, app *types.Application, varHistory []string) (*types.Object, error) {
 	f, err := findFunction(app.FunctionName)
 	if err != nil {
 		return nil, err
 	}
 
-	args := make([]types.Object, len(app.Arguments))
+	arguments := make([]*types.Object, len(app.Arguments))
 	for i, arg := range app.Arguments {
-		r, err := e.resolve(ctx, arg, varHistory)
-		if err != nil {
-			return nil, err
-		}
-		args[i], err = toObject(r)
-		if err != nil {
-			return nil, err
+		arguments[i] = arg
+
+		// Lookup any variable values.
+		if arg.Type() == types.TypeVariable {
+			v, _ := arg.ToVariable()
+
+			arguments[i], err = e.resolveVariable(ctx, v, varHistory)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	result, err := f(args)
+	// Resolve any nested applications.
+	for i, arg := range arguments {
+		if arg.Type() == types.TypeApplication {
+			a, _ := arg.ToApplication()
+			arguments[i], err = e.resolveApplication(ctx, a, varHistory)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return f(arguments)
+}
+
+func toResult(res *types.Object) *resolver.ResolveResponse {
+	obj, err := toResultObject(res)
 	if err != nil {
-		return nil, err
+		return toErrorResult(err)
 	}
 
-	return fromFuncObject(result)
+	return &resolver.ResolveResponse{
+		Result: obj,
+	}
 }
 
-func fromFuncObject(input types.Object) (*object, error) {
-	var output *object
-	switch e := input.(type) {
-	case *types.Number:
-		output = &object{
-			Type:        typeNumber,
-			NumberValue: e.Raw(),
-		}
-	case *types.String:
-		output = &object{
-			Type:        typeString,
-			StringValue: e.Raw(),
-		}
-	default:
-		return nil, errors.New(fmt.Sprintf("unrecognized object type %v", input))
+func toResultObject(obj *types.Object) (*resolver.Object, error) {
+	if obj == nil {
+		return nil, nil
 	}
+	switch obj.Type() {
+	case types.TypeNumber:
+		n, _ := obj.ToNumber()
+		return &resolver.Object{
+			Type:        resolver.ObjectType_NUMBER,
+			NumberValue: n,
+		}, nil
+	case types.TypeString:
+		s, _ := obj.ToString()
+		return &resolver.Object{
+			Type:        resolver.ObjectType_STRING,
+			StringValue: s,
+		}, nil
+	case types.TypeList:
+		list, _ := obj.ToList()
 
-	return output, nil
-}
+		els := make([]*resolver.Object, len(list.Elements))
+		var err error
+		for i, el := range list.Elements {
+			els[i], err = toResultObject(el)
+			if err != nil {
+				return nil, err
+			}
+		}
 
-func toResult(res *object) *resolver.ResolveResponse {
-	if res == nil {
-		return &resolver.ResolveResponse{
-			Result: nil,
-		}
-	}
-	switch res.Type {
-	case typeNumber:
-		return &resolver.ResolveResponse{
-			Result: &resolver.Object{
-				Type:        resolver.ObjectType_NUMBER,
-				NumberValue: res.NumberValue,
+		return &resolver.Object{
+			Type: resolver.ObjectType_LIST,
+			ListValue: &resolver.List{
+				Elements: els,
 			},
-		}
-	case typeString:
-		return &resolver.ResolveResponse{
-			Result: &resolver.Object{
-				Type:        resolver.ObjectType_STRING,
-				StringValue: res.StringValue,
-			},
-		}
+		}, nil
 	default:
-		return toErrorResult(fmt.Errorf("unexpected result type: %v", res.Type))
+		return nil, fmt.Errorf("unexpected result type: %v", obj.Type())
 	}
 }
 
@@ -262,20 +256,5 @@ func findFunction(funcName string) (types.Function, error) {
 		return std.Love, nil
 	default:
 		return nil, errors.New("function not found")
-	}
-}
-
-func toObject(arg *object) (types.Object, error) {
-	if arg == nil {
-		return nil, errors.New("unexpected nil argument passed to function")
-	}
-
-	switch arg.Type {
-	case typeNumber:
-		return types.NewNumber(arg.NumberValue), nil
-	case typeString:
-		return types.NewString(arg.StringValue), nil
-	default:
-		return nil, errors.New(fmt.Sprintf("unexpected argument type %s", arg.Type))
 	}
 }

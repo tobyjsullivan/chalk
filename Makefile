@@ -46,7 +46,7 @@ $(DOCKER_IMAGES)/monolith-svc.tar.gz: docker/Dockerfile.monolith-svc $(OUT_MONOL
 	docker build -f docker/Dockerfile.monolith-svc -t chalk-monolith-svc .
 	docker save chalk-monolith-svc:latest > $(DOCKER_IMAGES)/monolith-svc.tar.gz
 
-.PHONY: apply clean compose deploy docker format generate init push-docker precompile
+.PHONY: apply clean compose deploy docker format generate init push-docker precompile test
 
 apply:
 	cd ./infra && terraform apply
@@ -90,3 +90,6 @@ push-docker: docker
 	docker push "$$(cd ./infra && terraform output repo_api_url):latest"
 
 precompile: format generate
+
+test:
+	go test ./...

@@ -7,7 +7,7 @@ import (
 )
 
 func TestConcatenate_Handler(t *testing.T) {
-	result, err := Concatenate([]types.Object{
+	result, err := Concatenate([]*types.Object{
 		types.NewString("Hello"),
 		types.NewString(", "),
 		types.NewString("World!"),
@@ -16,12 +16,12 @@ func TestConcatenate_Handler(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	s, err := result.AsString()
+	s, err := result.ToString()
 	if err != nil {
 		t.Errorf("Unexpected cast error: %v", err)
 	}
 
-	if raw := s.Raw(); raw != "Hello, World!" {
-		t.Errorf("Unexpected result value: %s", raw)
+	if s != "Hello, World!" {
+		t.Errorf("Unexpected result value: %s", s)
 	}
 }
