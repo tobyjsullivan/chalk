@@ -75,8 +75,17 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 
 		return types.NewList(elObjs), nil
 	} else if ast.RecordVal != nil {
-		// TODO
-		return nil, errors.New("record not handled")
+		props := make(map[string]*types.Object)
+
+		var err error
+		for _, prop := range ast.RecordVal.Properties {
+			props[prop.Name], err = mapAst(prop.Value)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return types.NewRecord(props), nil
 	} else if ast.FunctionCall != nil {
 		args := make([]*types.Object, len(ast.FunctionCall.Argument.Elements))
 		for i, arg := range ast.FunctionCall.Argument.Elements {
@@ -233,6 +242,28 @@ func toResultObject(obj *types.Object) (*resolver.Object, error) {
 			Type: resolver.ObjectType_LIST,
 			ListValue: &resolver.List{
 				Elements: els,
+			},
+		}, nil
+	case types.TypeRecord:
+		record, _ := obj.ToRecord()
+
+		props := make([]*resolver.RecordProperty, 0, len(record.Properties))
+		for k, v := range record.Properties {
+			value, err := toResultObject(v)
+			if err != nil {
+				return nil, err
+			}
+
+			props = append(props, &resolver.RecordProperty{
+				Name:  k,
+				Value: value,
+			})
+		}
+
+		return &resolver.Object{
+			Type: resolver.ObjectType_RECORD,
+			RecordValue: &resolver.Record{
+				Properties: props,
 			},
 		}, nil
 	default:
