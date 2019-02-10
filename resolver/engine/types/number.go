@@ -15,10 +15,10 @@ func (n *Number) AsNumber() (*Number, error) {
 	return n, nil
 }
 
-func (n *Number) AsString() (*String, error) {
+func (*Number) AsString() (*String, error) {
 	return nil, InvalidCastError{}
 }
 
-func (s *Number) AsFunction() (*Function, error) {
+func (*Number) AsFunction() (Function, error) {
 	return nil, InvalidCastError{}
 }
