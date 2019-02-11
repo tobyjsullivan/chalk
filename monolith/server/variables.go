@@ -13,7 +13,6 @@ type variablesServer struct {
 }
 
 func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest) (*monolith.GetVariablesResponse, error) {
-	log.Printf("Received GetVariables request: %v", in)
 	var out []*monolith.Variable
 	for _, k := range in.Keys {
 		f := s.varMap[k]
@@ -21,6 +20,7 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 			Name:    k,
 			Formula: f,
 		})
+		log.Println("Sending var", k, ":", f)
 	}
 
 	return &monolith.GetVariablesResponse{
@@ -31,6 +31,8 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVariableRequest) (*monolith.SetVariableResponse, error) {
 	key := in.Key
 	value := in.Formula
+	log.Println("Setting var", key, ":", value)
+
 	if value == "" {
 		delete(s.varMap, key)
 	} else {

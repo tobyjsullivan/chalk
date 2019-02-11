@@ -48,6 +48,8 @@ func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc monolith.Varia
 
 func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
 	switch request.HttpMethod {
+	case http.MethodGet:
+		return h.doGet(ctx, request)
 	case http.MethodPost:
 		return h.doPost(ctx, request)
 	case http.MethodOptions:
@@ -70,6 +72,18 @@ func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, e
 	}, nil
 }
 
+func (h *Handler) doGet(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+	if req.Path == "/health" {
+		return h.doGetHealth(ctx, req)
+	}
+
+	return &ApiResponse{
+		StatusCode:      http.StatusNotFound,
+		Body:            []byte("404 Not Found"),
+		IsBase64Encoded: false,
+	}, nil
+}
+
 func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
 	if rePathExecute.MatchString(req.Path) {
 		return h.doPostExecute(ctx, req)
@@ -80,6 +94,15 @@ func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, erro
 	return &ApiResponse{
 		StatusCode:      http.StatusNotFound,
 		Body:            []byte("404 Not Found"),
+		IsBase64Encoded: false,
+	}, nil
+}
+
+func (h *Handler) doGetHealth(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+	return &ApiResponse{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(req),
+		Body:            []byte("{}"),
 		IsBase64Encoded: false,
 	}, nil
 }
