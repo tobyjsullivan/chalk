@@ -115,9 +115,11 @@ func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory 
 	case types.TypeString:
 		return formula, nil
 	case types.TypeList:
-		return formula, nil
+		l, _ := formula.ToList()
+		return e.resolveList(ctx, l, varHistory)
 	case types.TypeRecord:
-		return formula, nil
+		r, _ := formula.ToRecord()
+		return e.resolveRecord(ctx, r, varHistory)
 	case types.TypeVariable:
 		v, _ := formula.ToVariable()
 		return e.resolveVariable(ctx, v, varHistory)
@@ -161,6 +163,33 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 	copy(newHist, varHistory)
 	newHist[len(varHistory)] = varName
 	return e.resolve(ctx, o, newHist)
+}
+
+func (e *Engine) resolveList(ctx context.Context, list *types.List, varHistory []string) (*types.Object, error) {
+	resolvedElements := make([]*types.Object, len(list.Elements))
+	var err error
+	for i, element := range list.Elements {
+		resolvedElements[i], err = e.resolve(ctx, element, varHistory)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return types.NewList(resolvedElements), err
+}
+
+func (e *Engine) resolveRecord(ctx context.Context, rec *types.Record, varHistory []string) (*types.Object, error) {
+	resolvedProps := make(map[string]*types.Object)
+
+	var err error
+	for key, value := range rec.Properties {
+		resolvedProps[key], err = e.resolve(ctx, value, varHistory)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return types.NewRecord(resolvedProps), err
 }
 
 func (e *Engine) resolveApplication(ctx context.Context, app *types.Application, varHistory []string) (*types.Object, error) {
