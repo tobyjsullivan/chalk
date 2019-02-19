@@ -2,23 +2,22 @@ package engine
 
 import (
 	"context"
+	"testing"
+
 	"github.com/tobyjsullivan/chalk/monolith"
 	"google.golang.org/grpc"
-	"testing"
 
 	rpc "github.com/tobyjsullivan/chalk/resolver"
 )
 
-
 type fakeVarSvc struct {
-
 }
 
-func (*fakeVarSvc)  GetVariables(ctx context.Context, in *monolith.GetVariablesRequest, opts ...grpc.CallOption) (*monolith.GetVariablesResponse, error) {
+func (*fakeVarSvc) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest, opts ...grpc.CallOption) (*monolith.GetVariablesResponse, error) {
 	return &monolith.GetVariablesResponse{
 		Values: []*monolith.Variable{
 			{
-				Name: "var1",
+				Name:    "var1",
 				Formula: "\"Hello\"",
 			},
 		},
