@@ -6,6 +6,7 @@ const (
 	TypeApplication TypeName = "application"
 	TypeList                 = "list"
 	TypeNumber               = "number"
+	TypeLambda               = "lambda"
 	TypeRecord               = "record"
 	TypeString               = "string"
 	TypeVariable             = "variable"
@@ -22,6 +23,11 @@ type List struct {
 	Elements []*Object
 }
 
+type Lambda struct {
+	FreeVariables []string
+	Expression    *Object
+}
+
 type Record struct {
 	Properties map[string]*Object
 }
@@ -35,6 +41,7 @@ type Object struct {
 	applicationValue *Application
 	listValue        *List
 	numberValue      float64
+	lambdaValue      *Lambda
 	recordValue      *Record
 	stringValue      string
 	variableValue    *Variable
@@ -60,6 +67,16 @@ func NewApplication(funcName string, args []*Object) *Object {
 		applicationValue: &Application{
 			FunctionName: funcName,
 			Arguments:    args,
+		},
+	}
+}
+
+func NewLambda(freeVariables []string, expression *Object) *Object {
+	return &Object{
+		objectType: TypeLambda,
+		lambdaValue: &Lambda{
+			FreeVariables: freeVariables,
+			Expression:    expression,
 		},
 	}
 }
@@ -117,6 +134,14 @@ func (o *Object) ToApplication() (*Application, error) {
 	}
 
 	return o.applicationValue, nil
+}
+
+func (o *Object) ToLambda() (*Lambda, error) {
+	if o.objectType != TypeLambda {
+		return nil, errors.New("value is not a lambda")
+	}
+
+	return o.lambdaValue, nil
 }
 
 func (o *Object) ToList() (*List, error) {

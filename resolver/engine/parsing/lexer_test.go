@@ -22,6 +22,16 @@ func TestLexer_paren(t *testing.T) {
 	}
 }
 
+func TestLexer_arrow(t *testing.T) {
+	input := "=>"
+
+	lex := NewLexer(NewInputStream(input))
+
+	if tok := lex.Next(); tok.Type != tokenPunctuation || tok.Value != "=>" {
+		t.Error("Expected ", tokenPunctuation, "=>", "; got", tok.Type, tok.Value)
+	}
+}
+
 func TestLexer_integer(t *testing.T) {
 	input := "42"
 

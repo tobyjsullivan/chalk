@@ -20,6 +20,7 @@ enum ObjectType {
     NUMBER = 1;
     LIST = 2;
     RECORD = 3;
+    LAMBDA = 4;
 }
 
 message Object {
@@ -29,6 +30,7 @@ message Object {
     List list_value = 4;
     Record record_value = 5;
     Tuple tuple_value = 6;
+    Lambda lambda_value = 7;
 }
 
 message List {
@@ -37,6 +39,10 @@ message List {
 
 message Tuple {
     repeated Object elements = 2;
+}
+
+message Lambda {
+    repeated string free_variables = 1;
 }
 
 message Record {

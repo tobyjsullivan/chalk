@@ -96,3 +96,35 @@ func TestListWithVar(t *testing.T) {
 		t.Errorf("Unexpected element value: %s", v)
 	}
 }
+
+func TestLambda(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
+
+	req := &rpc.ResolveRequest{
+		Formula: "(a, b) => SUM(a, b)",
+	}
+
+	e := NewEngine(fakeVarSvc)
+	res := e.Query(context.Background(), req)
+
+	if res.Error != "" {
+		t.Fatalf("Unexpected error response: %s", res.Error)
+	}
+
+	if res.Result.Type != rpc.ObjectType_LAMBDA {
+		t.Errorf("Unexpected result type: %s", res.Result.Type)
+	}
+
+	if varCount := len(res.Result.LambdaValue.FreeVariables); varCount != 2 {
+		t.Errorf("Unexpected free variable count: %d", varCount)
+	}
+
+	if varA := res.Result.LambdaValue.FreeVariables[0]; varA != "a" {
+		t.Errorf("Unexpected free variable: %s", varA)
+	}
+
+	if varB := res.Result.LambdaValue.FreeVariables[1]; varB != "b" {
+		t.Errorf("Unexpected free variable: %s", varB)
+	}
+
+}

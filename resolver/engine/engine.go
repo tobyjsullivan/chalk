@@ -99,6 +99,12 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 		return types.NewApplication(ast.FunctionCall.FuncName, args), nil
 	} else if ast.VariableVal != nil {
 		return types.NewVariable(*ast.VariableVal), nil
+	} else if ast.Lambda != nil {
+		exp, err := mapAst(ast.Lambda.Expression)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewLambda(ast.Lambda.FreeVariables, exp), nil
 	} else {
 		return nil, fmt.Errorf("unknown ast node: %v", ast)
 	}
@@ -126,6 +132,8 @@ func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory 
 	case types.TypeApplication:
 		a, _ := formula.ToApplication()
 		return e.resolveApplication(ctx, a, varHistory)
+	case types.TypeLambda:
+		return formula, nil
 	default:
 		return nil, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type()))
 	}
@@ -293,6 +301,15 @@ func toResultObject(obj *types.Object) (*resolver.Object, error) {
 			Type: resolver.ObjectType_RECORD,
 			RecordValue: &resolver.Record{
 				Properties: props,
+			},
+		}, nil
+	case types.TypeLambda:
+		lambda, _ := obj.ToLambda()
+
+		return &resolver.Object{
+			Type: resolver.ObjectType_LAMBDA,
+			LambdaValue: &resolver.Lambda{
+				FreeVariables: lambda.FreeVariables,
 			},
 		}, nil
 	default:
