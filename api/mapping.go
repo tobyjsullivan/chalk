@@ -15,12 +15,17 @@ type executionResultObject struct {
 	Type        *executionResultObjectType `json:"type"`
 	NumberValue float64                    `json:"numberValue,omitempty"`
 	StringValue string                     `json:"stringValue,omitempty"`
+	LambdaValue *executionResultLambda     `json:"lambdaValue,omitempty"`
 	ListValue   *executionResultList       `json:"listValue,omitempty"`
 	RecordValue *executionResultRecord     `json:"recordValue,omitempty"`
 }
 
 type executionResultObjectType struct {
 	Class string `json:"class"`
+}
+
+type executionResultLambda struct {
+	FreeVariables []string `json:"freeVariables"`
 }
 
 type executionResultList struct {
@@ -61,6 +66,21 @@ func mapResolveResponseObject(object *resolver.Object) (*executionResultObject, 
 			},
 			NumberValue: object.NumberValue,
 		}, nil
+	case resolver.ObjectType_LAMBDA:
+		freeVars := object.LambdaValue.FreeVariables
+
+		result := &executionResultObject{
+			Type: &executionResultObjectType{
+				Class: "lambda",
+			},
+			LambdaValue: &executionResultLambda{
+				FreeVariables: make([]string, len(freeVars)),
+			},
+		}
+
+		copy(result.LambdaValue.FreeVariables, freeVars)
+
+		return result, nil
 	case resolver.ObjectType_LIST:
 		elements := object.ListValue.Elements
 		listObj := &executionResultObject{
