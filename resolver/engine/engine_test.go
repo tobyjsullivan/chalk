@@ -28,11 +28,12 @@ func (*fakeVarSvc) SetVariable(ctx context.Context, in *monolith.SetVariableRequ
 }
 
 func TestQuery(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
 	req := &rpc.ResolveRequest{
 		Formula: "SUM(1, 2, 3)",
 	}
 
-	e := NewEngine(nil)
+	e := NewEngine(fakeVarSvc)
 	res := e.Query(context.Background(), req)
 
 	if res.Error != "" {
@@ -49,11 +50,12 @@ func TestQuery(t *testing.T) {
 }
 
 func TestQueryNested(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
 	req := &rpc.ResolveRequest{
 		Formula: "CONCATENATE(\"Hello, \", CONCATENATE(\"World\", \"!\"))",
 	}
 
-	e := NewEngine(nil)
+	e := NewEngine(fakeVarSvc)
 	res := e.Query(context.Background(), req)
 
 	if res.Error != "" {
@@ -71,7 +73,6 @@ func TestQueryNested(t *testing.T) {
 
 func TestListWithVar(t *testing.T) {
 	fakeVarSvc := &fakeVarSvc{}
-
 	req := &rpc.ResolveRequest{
 		Formula: "[var1]",
 	}
@@ -95,4 +96,36 @@ func TestListWithVar(t *testing.T) {
 	if v := element.StringValue; v != "Hello" {
 		t.Errorf("Unexpected element value: %s", v)
 	}
+}
+
+func TestLambda(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
+
+	req := &rpc.ResolveRequest{
+		Formula: "(a, b) => SUM(a, b)",
+	}
+
+	e := NewEngine(fakeVarSvc)
+	res := e.Query(context.Background(), req)
+
+	if res.Error != "" {
+		t.Fatalf("Unexpected error response: %s", res.Error)
+	}
+
+	if res.Result.Type != rpc.ObjectType_LAMBDA {
+		t.Errorf("Unexpected result type: %s", res.Result.Type)
+	}
+
+	if varCount := len(res.Result.LambdaValue.FreeVariables); varCount != 2 {
+		t.Errorf("Unexpected free variable count: %d", varCount)
+	}
+
+	if varA := res.Result.LambdaValue.FreeVariables[0]; varA != "a" {
+		t.Errorf("Unexpected free variable: %s", varA)
+	}
+
+	if varB := res.Result.LambdaValue.FreeVariables[1]; varB != "b" {
+		t.Errorf("Unexpected free variable: %s", varB)
+	}
+
 }

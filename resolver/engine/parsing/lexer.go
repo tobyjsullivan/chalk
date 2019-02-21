@@ -50,9 +50,20 @@ func (l *Lexer) readNext() *Token {
 		return l.readNumber()
 	}
 	if isPunctuation(ch) {
+		symbol := l.input.next()
+
+		// Special case, detect `=>`
+		if symbol == '=' && l.input.peek() == '>' {
+			l.input.next()
+			return &Token{
+				Type:  tokenPunctuation,
+				Value: "=>",
+			}
+		}
+
 		return &Token{
 			Type:  tokenPunctuation,
-			Value: string(l.input.next()),
+			Value: string(symbol),
 		}
 	}
 	if isIdentStart(ch) {
@@ -176,7 +187,7 @@ func isDigit(ch rune) bool {
 }
 
 func isPunctuation(ch rune) bool {
-	return strings.ContainsRune("(){}[],=", ch)
+	return strings.ContainsRune("(){}[],=>", ch)
 }
 
 func isIdentStart(ch rune) bool {

@@ -55,6 +55,15 @@ func (p *Parser) parseEntity() (*ASTNode, error) {
 			return &ASTNode{
 				ListVal: list,
 			}, nil
+		case "(":
+			// Handle lambda expression
+			lambda, err := p.parseLambda()
+			if err != nil {
+				return nil, err
+			}
+			return &ASTNode{
+				Lambda: lambda,
+			}, nil
 		default:
 			return nil, fmt.Errorf("expected Number, String, Identifier, `{`, or `[`; got: %+v", tok)
 		}
@@ -232,6 +241,62 @@ func (p *Parser) parseTuple() (*Tuple, error) {
 	}, nil
 }
 
+func (p *Parser) parseLambda() (*Lambda, error) {
+	freeVariables, err := p.parseFreeVariables()
+	if err != nil {
+		return nil, err
+	}
+
+	// Expect "=>"
+	if arrow := p.l.Next(); arrow == nil || arrow.Type != tokenPunctuation || arrow.Value != "=>" {
+		return nil, fmt.Errorf("expected `=>`; got %+v", arrow)
+	}
+
+	exp, err := p.parseEntity()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Lambda{
+		FreeVariables: freeVariables,
+		Expression:    exp,
+	}, nil
+}
+
+func (p *Parser) parseFreeVariables() ([]string, error) {
+	if open := p.l.Next(); open == nil || open.Type != tokenPunctuation || open.Value != "(" {
+		return nil, fmt.Errorf("expected `(`; got %+v", open)
+	}
+
+	var freeVars []string
+	for {
+		tok := p.l.Peek()
+		if tok == nil {
+			return nil, errors.New("unexpected end of input")
+		} else if tok.Type == tokenPunctuation && tok.Value == ")" {
+			p.l.Next()
+			break
+		} else if tok.Type == tokenIdentifier {
+			v := p.l.Next()
+			freeVars = append(freeVars, v.Value)
+
+			// Expect comma or close.
+			nTok := p.l.Next()
+			if nTok == nil {
+				return nil, errors.New("unexpected end of input")
+			} else if nTok.Type == tokenPunctuation && nTok.Value == ")" {
+				break
+			} else if nTok.Type != tokenPunctuation || nTok.Value != "," {
+				return nil, fmt.Errorf("expected `,` or `)`; got %+v", nTok)
+			}
+		} else {
+			return nil, fmt.Errorf("expected identifier or `)`; got %+v", tok)
+		}
+	}
+
+	return freeVars, nil
+}
+
 type ASTNode struct {
 	FunctionCall *FunctionCall
 	ListVal      *List
@@ -240,6 +305,12 @@ type ASTNode struct {
 	StringVal    *string
 	TupleVal     *Tuple
 	VariableVal  *string
+	Lambda       *Lambda
+}
+
+type Lambda struct {
+	FreeVariables []string
+	Expression    *ASTNode
 }
 
 type FunctionCall struct {

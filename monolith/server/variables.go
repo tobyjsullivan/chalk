@@ -15,7 +15,11 @@ type variablesServer struct {
 func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest) (*monolith.GetVariablesResponse, error) {
 	var out []*monolith.Variable
 	for _, k := range in.Keys {
-		f := s.varMap[k]
+		f, ok := s.varMap[k]
+		if !ok {
+			log.Println("Requested variable not found", k)
+			continue
+		}
 		out = append(out, &monolith.Variable{
 			Name:    k,
 			Formula: f,
