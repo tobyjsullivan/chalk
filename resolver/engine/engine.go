@@ -449,6 +449,8 @@ func findBuiltinFunction(funcName string) (types.Function, error) {
 		return std.Concatenate, nil
 	case "love":
 		return std.Love, nil
+	case "list":
+		return std.List, nil
 	default:
 		return nil, errors.New("function not found")
 	}
