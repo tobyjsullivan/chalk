@@ -128,18 +128,22 @@ func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory 
 		return e.resolveRecord(ctx, r, varHistory)
 	case types.TypeVariable:
 		v, _ := formula.ToVariable()
-		return e.resolveVariable(ctx, v, varHistory)
+		result, err := e.resolveVariable(ctx, v, varHistory, true)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	case types.TypeApplication:
 		a, _ := formula.ToApplication()
 		return e.resolveApplication(ctx, a, varHistory)
 	case types.TypeLambda:
 		return formula, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("unrecognized argument type %s", formula.Type()))
+		return nil, fmt.Errorf("unrecognized argument type %s", formula.Type())
 	}
 }
 
-func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, varHistory []string) (*types.Object, error) {
+func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, varHistory []string, required bool) (*types.Object, error) {
 	varName := variable.Name
 	// Check for cycles
 	for _, seen := range varHistory {
@@ -155,10 +159,23 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Values) != 1 {
-		return nil, fmt.Errorf("expected exactly 1 value; got: %d", len(resp.Values))
+
+	var match *monolith.Variable
+	for _, v := range resp.Values {
+		if v.Name == varName {
+			match = v
+			break
+		}
 	}
-	f := resp.Values[0].Formula
+
+	if match == nil {
+		if required {
+			return nil, fmt.Errorf("variable `%s` is not defined", varName)
+		}
+		return nil, nil
+	}
+
+	f := match.Formula
 
 	// get object
 	o, err := parseFormula(f)
@@ -201,7 +218,7 @@ func (e *Engine) resolveRecord(ctx context.Context, rec *types.Record, varHistor
 }
 
 func (e *Engine) resolveApplication(ctx context.Context, app *types.Application, varHistory []string) (*types.Object, error) {
-	f, err := findFunction(app.FunctionName)
+	f, err := e.findFunction(ctx, app.FunctionName, varHistory)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +231,7 @@ func (e *Engine) resolveApplication(ctx context.Context, app *types.Application,
 		if arg.Type() == types.TypeVariable {
 			v, _ := arg.ToVariable()
 
-			arguments[i], err = e.resolveVariable(ctx, v, varHistory)
+			arguments[i], err = e.resolveVariable(ctx, v, varHistory, true)
 			if err != nil {
 				return nil, err
 			}
@@ -233,6 +250,107 @@ func (e *Engine) resolveApplication(ctx context.Context, app *types.Application,
 	}
 
 	return f(arguments)
+}
+
+func (e *Engine) findFunction(ctx context.Context, funcName string, varHistory []string) (types.Function, error) {
+	// Check if function is a defined variable.
+	v, err := e.resolveVariable(ctx, &types.Variable{Name: funcName}, varHistory, false)
+	if err != nil {
+		return nil, err
+	}
+	if v != nil {
+		if v.Type() != types.TypeLambda {
+			return nil, fmt.Errorf("variable `%s` is not a lambda", funcName)
+		}
+
+		l, _ := v.ToLambda()
+		return func(paramTuple []*types.Object) (*types.Object, error) {
+			varMap := make(map[string]*types.Object)
+			for i, varName := range l.FreeVariables {
+				if i >= len(paramTuple) {
+					return nil, fmt.Errorf("incomplete var set provided. missing: %v", l.FreeVariables[i:])
+				}
+				varMap[varName] = paramTuple[i]
+			}
+
+			bound, err := bindVariables(l.Expression, varMap)
+			if err != nil {
+				return nil, err
+			}
+
+			return e.resolve(ctx, bound, varHistory)
+		}, nil
+	}
+
+	// Otherwise try a builtin
+	return findBuiltinFunction(funcName)
+}
+
+func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.Object, error) {
+	switch obj.Type() {
+	case types.TypeString:
+		return obj, nil
+	case types.TypeNumber:
+		return obj, nil
+	case types.TypeVariable:
+		v, _ := obj.ToVariable()
+		if value, ok := varMap[v.Name]; ok {
+			return value, nil
+		}
+		return obj, nil
+	case types.TypeList:
+		l, _ := obj.ToList()
+		elements := make([]*types.Object, len(l.Elements))
+		var err error
+		for i, v := range l.Elements {
+			elements[i], err = bindVariables(v, varMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return types.NewList(elements), nil
+	case types.TypeRecord:
+		r, _ := obj.ToRecord()
+		props := make(map[string]*types.Object)
+		var err error
+		for k, v := range r.Properties {
+			props[k], err = bindVariables(v, varMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return types.NewRecord(props), nil
+	case types.TypeApplication:
+		a, _ := obj.ToApplication()
+		args := make([]*types.Object, len(a.Arguments))
+		var err error
+		for i, arg := range a.Arguments {
+			args[i], err = bindVariables(arg, varMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return types.NewApplication(a.FunctionName, args), nil
+	case types.TypeLambda:
+		l, _ := obj.ToLambda()
+
+		// Create a copy of the varMap but without vars defined in this lambda. This allows "shadowing".
+		subMap := make(map[string]*types.Object)
+		for k, v := range varMap {
+			subMap[k] = v
+		}
+		for _, v := range l.FreeVariables {
+			delete(subMap, v)
+		}
+		exp, err := bindVariables(l.Expression, subMap)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewLambda(l.FreeVariables, exp), nil
+	default:
+		return nil, fmt.Errorf("unexpected object type: %v", obj.Type())
+	}
 }
 
 func toResult(res *types.Object) *resolver.ResolveResponse {
@@ -323,7 +441,7 @@ func toErrorResult(err error) *resolver.ResolveResponse {
 	}
 }
 
-func findFunction(funcName string) (types.Function, error) {
+func findBuiltinFunction(funcName string) (types.Function, error) {
 	switch strings.ToLower(funcName) {
 	case "sum":
 		return std.Sum, nil

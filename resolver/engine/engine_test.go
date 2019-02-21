@@ -28,11 +28,12 @@ func (*fakeVarSvc) SetVariable(ctx context.Context, in *monolith.SetVariableRequ
 }
 
 func TestQuery(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
 	req := &rpc.ResolveRequest{
 		Formula: "SUM(1, 2, 3)",
 	}
 
-	e := NewEngine(nil)
+	e := NewEngine(fakeVarSvc)
 	res := e.Query(context.Background(), req)
 
 	if res.Error != "" {
@@ -49,11 +50,12 @@ func TestQuery(t *testing.T) {
 }
 
 func TestQueryNested(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
 	req := &rpc.ResolveRequest{
 		Formula: "CONCATENATE(\"Hello, \", CONCATENATE(\"World\", \"!\"))",
 	}
 
-	e := NewEngine(nil)
+	e := NewEngine(fakeVarSvc)
 	res := e.Query(context.Background(), req)
 
 	if res.Error != "" {
@@ -71,7 +73,6 @@ func TestQueryNested(t *testing.T) {
 
 func TestListWithVar(t *testing.T) {
 	fakeVarSvc := &fakeVarSvc{}
-
 	req := &rpc.ResolveRequest{
 		Formula: "[var1]",
 	}
