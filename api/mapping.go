@@ -13,8 +13,8 @@ type executionResult struct {
 
 type executionResultObject struct {
 	Type        *executionResultObjectType `json:"type"`
-	NumberValue float64                    `json:"numberValue,omitempty"`
-	StringValue string                     `json:"stringValue,omitempty"`
+	NumberValue *float64                   `json:"numberValue,omitempty"`
+	StringValue *string                    `json:"stringValue,omitempty"`
 	LambdaValue *executionResultLambda     `json:"lambdaValue,omitempty"`
 	ListValue   *executionResultList       `json:"listValue,omitempty"`
 	RecordValue *executionResultRecord     `json:"recordValue,omitempty"`
@@ -57,14 +57,14 @@ func mapResolveResponseObject(object *resolver.Object) (*executionResultObject, 
 			Type: &executionResultObjectType{
 				Class: "string",
 			},
-			StringValue: object.StringValue,
+			StringValue: &object.StringValue,
 		}, nil
 	case resolver.ObjectType_NUMBER:
 		return &executionResultObject{
 			Type: &executionResultObjectType{
 				Class: "number",
 			},
-			NumberValue: object.NumberValue,
+			NumberValue: &object.NumberValue,
 		}, nil
 	case resolver.ObjectType_LAMBDA:
 		freeVars := object.LambdaValue.FreeVariables
