@@ -98,11 +98,16 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 		}
 	}
 
+	state, err := s.getVariable(id)
+	if err != nil {
+		return nil, err
+	}
+
 	return &monolith.SetVariableResponse{
 		Variable: &monolith.Variable{
 			VariableId: id.String(),
-			Name:       in.Name,
-			Formula:    in.Formula,
+			Name:       state.name,
+			Formula:    state.formula,
 		},
 	}, nil
 }
