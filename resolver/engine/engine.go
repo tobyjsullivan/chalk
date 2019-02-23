@@ -328,7 +328,13 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 				return nil, err
 			}
 		}
-		return types.NewApplication(a.Expression, args), nil
+
+		exp, err := bindVariables(a.Expression, varMap)
+		if err != nil {
+			return nil, err
+		}
+
+		return types.NewApplication(exp, args), nil
 	case types.TypeLambda:
 		l, _ := obj.ToLambda()
 
