@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/tobyjsullivan/chalk/monolith"
 )
@@ -15,7 +16,7 @@ type variablesServer struct {
 func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest) (*monolith.GetVariablesResponse, error) {
 	var out []*monolith.Variable
 	for _, k := range in.Keys {
-		f, ok := s.varMap[k]
+		f, ok := s.varMap[normalizeVarName(k)]
 		if !ok {
 			log.Println("Requested variable not found", k)
 			continue
@@ -33,7 +34,7 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 }
 
 func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVariableRequest) (*monolith.SetVariableResponse, error) {
-	key := in.Key
+	key := normalizeVarName(in.Key)
 	value := in.Formula
 	log.Println("Setting var", key, ":", value)
 
@@ -46,4 +47,8 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 	return &monolith.SetVariableResponse{
 		Variable: &monolith.Variable{},
 	}, nil
+}
+
+func normalizeVarName(varName string) string {
+	return strings.ToLower(varName)
 }
