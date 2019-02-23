@@ -70,9 +70,18 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 }
 
 func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVariableRequest) (*monolith.SetVariableResponse, error) {
-	id, err := uuid.FromString(in.Id)
-	if err != nil {
-		return nil, err
+	var id uuid.UUID
+	var err error
+	if in.Id == "" {
+		id, err = s.createVariable(in.Name, in.Formula)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		id, err = uuid.FromString(in.Id)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if in.Name != "" {

@@ -93,8 +93,10 @@ func (h *Handler) doGet(ctx context.Context, req *Event) (*Response, error) {
 
 func (h *Handler) doPost(ctx context.Context, req *Event) (*Response, error) {
 	if rePathCreateVar.MatchString(req.Path) {
+		log.Println("Creating var")
 		return h.doCreateVariable(ctx, req)
 	} else if rePathUpdateVar.MatchString(req.Path) {
+		log.Println("Updating var")
 		return h.doUpdateVariable(ctx, req)
 	}
 
