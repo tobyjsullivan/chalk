@@ -171,7 +171,7 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 
 	// Lookup formula
 	resp, err := e.varSvc.GetVariables(ctx, &monolith.GetVariablesRequest{
-		Keys: []string{varName},
+		Names: []string{varName},
 	})
 	if err != nil {
 		return nil, err
