@@ -27,12 +27,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			headers[k] = vs[0]
 		}
 	}
+	q := r.URL.Query()
 
-	req := &api.ApiEvent{
-		Body:       string(body),
-		HttpMethod: r.Method,
-		Path:       r.URL.Path,
-		Headers:    headers,
+	req := &api.Event{
+		Body:                            string(body),
+		HttpMethod:                      r.Method,
+		MultiValueQueryStringParameters: q,
+		Path:    r.URL.Path,
+		Headers: headers,
 	}
 
 	ctx := context.Background()

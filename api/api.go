@@ -16,18 +16,23 @@ const allowedOrigin = "*"
 const headerOrigin = "origin"
 
 var (
-	rePathExecute     = regexp.MustCompile("^/execute$")
-	rePathSetVariable = regexp.MustCompile("^/variables$")
+	reVariablesCollection = regexp.MustCompile("^/variables$")
+	reVariablesDocument   = regexp.MustCompile("^/variables/([a-fA-F0-9-]+)$")
+
+	rePathCreateVar = reVariablesCollection
+	rePathUpdateVar = reVariablesDocument
+	rePathGetVars   = reVariablesCollection
 )
 
-type ApiEvent struct {
-	Body       string            `json:"body"`
-	HttpMethod string            `json:"httpMethod"`
-	Path       string            `json:"path"`
-	Headers    map[string]string `json:"headers"`
+type Event struct {
+	Body                            string              `json:"body"`
+	HttpMethod                      string              `json:"httpMethod"`
+	MultiValueQueryStringParameters map[string][]string `json:"multiValueQueryStringParameters"`
+	Path                            string              `json:"path"`
+	Headers                         map[string]string   `json:"headers"`
 }
 
-type ApiResponse struct {
+type Response struct {
 	StatusCode      int               `json:"statusCode"`
 	Headers         map[string]string `json:"headers"`
 	Body            []byte            `json:"body"`
@@ -46,7 +51,7 @@ func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc monolith.Varia
 	}
 }
 
-func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiResponse, error) {
+func (h *Handler) HandleRequest(ctx context.Context, request *Event) (*Response, error) {
 	switch request.HttpMethod {
 	case http.MethodGet:
 		return h.doGet(ctx, request)
@@ -55,7 +60,7 @@ func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiRes
 	case http.MethodOptions:
 		return h.doOptions(ctx, request)
 	default:
-		return &ApiResponse{
+		return &Response{
 			StatusCode:      http.StatusMethodNotAllowed,
 			Body:            []byte("405 Method Not Allowed"),
 			IsBase64Encoded: false,
@@ -63,8 +68,8 @@ func (h *Handler) HandleRequest(ctx context.Context, request *ApiEvent) (*ApiRes
 	}
 }
 
-func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
-	return &ApiResponse{
+func (h *Handler) doOptions(ctx context.Context, req *Event) (*Response, error) {
+	return &Response{
 		StatusCode:      http.StatusOK,
 		Headers:         determineCorsHeaders(req),
 		Body:            []byte(""),
@@ -72,34 +77,36 @@ func (h *Handler) doOptions(ctx context.Context, req *ApiEvent) (*ApiResponse, e
 	}, nil
 }
 
-func (h *Handler) doGet(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
+func (h *Handler) doGet(ctx context.Context, req *Event) (*Response, error) {
 	if req.Path == "/health" {
 		return h.doGetHealth(ctx, req)
+	} else if rePathGetVars.MatchString(req.Path) {
+		return h.doGetVariables(ctx, req)
 	}
 
-	return &ApiResponse{
+	return &Response{
 		StatusCode:      http.StatusNotFound,
 		Body:            []byte("404 Not Found"),
 		IsBase64Encoded: false,
 	}, nil
 }
 
-func (h *Handler) doPost(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
-	if rePathExecute.MatchString(req.Path) {
-		return h.doPostExecute(ctx, req)
-	} else if rePathSetVariable.MatchString(req.Path) {
-		return h.doPostVariables(ctx, req)
+func (h *Handler) doPost(ctx context.Context, req *Event) (*Response, error) {
+	if rePathCreateVar.MatchString(req.Path) {
+		return h.doCreateVariable(ctx, req)
+	} else if rePathUpdateVar.MatchString(req.Path) {
+		return h.doUpdateVariable(ctx, req)
 	}
 
-	return &ApiResponse{
+	return &Response{
 		StatusCode:      http.StatusNotFound,
 		Body:            []byte("404 Not Found"),
 		IsBase64Encoded: false,
 	}, nil
 }
 
-func (h *Handler) doGetHealth(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
-	return &ApiResponse{
+func (h *Handler) doGetHealth(ctx context.Context, req *Event) (*Response, error) {
+	return &Response{
 		StatusCode:      http.StatusOK,
 		Headers:         determineCorsHeaders(req),
 		Body:            []byte("{}"),
@@ -107,22 +114,30 @@ func (h *Handler) doGetHealth(ctx context.Context, req *ApiEvent) (*ApiResponse,
 	}, nil
 }
 
-func (h *Handler) doPostExecute(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
-	body := req.Body
-	var query resolver.ResolveRequest
-	err := json.Unmarshal([]byte(body), &query)
+func (h *Handler) doCreateVariable(ctx context.Context, event *Event) (*Response, error) {
+	body := event.Body
+	var createRequest createVariableRequest
+	err := json.Unmarshal([]byte(body), &createRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := h.resolverSvc.Resolve(ctx, &query)
+	resp, err := h.variablesSvc.SetVariable(ctx, &monolith.SetVariableRequest{
+		Name:    createRequest.Name,
+		Formula: createRequest.Formula,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := mapResolveResponse(result)
-	if err != nil {
-		return nil, err
+	var out createVariableResponse
+	if resp.Error != nil {
+		out.Error = &resp.Error.Message
+	} else if resp.Variable != nil {
+		out.State, err = h.buildVariableState(ctx, resp.Variable)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	b, err := json.Marshal(out)
@@ -130,39 +145,118 @@ func (h *Handler) doPostExecute(ctx context.Context, req *ApiEvent) (*ApiRespons
 		return nil, err
 	}
 
-	return &ApiResponse{
+	return &Response{
 		StatusCode:      http.StatusOK,
-		Headers:         determineCorsHeaders(req),
+		Headers:         determineCorsHeaders(event),
 		Body:            b,
 		IsBase64Encoded: false,
 	}, nil
 }
 
-func (h *Handler) doPostVariables(ctx context.Context, req *ApiEvent) (*ApiResponse, error) {
-	var parsed setVariableRequest
-	if err := json.Unmarshal([]byte(req.Body), &parsed); err != nil {
+func (h *Handler) doUpdateVariable(ctx context.Context, event *Event) (*Response, error) {
+	body := event.Body
+	var updateRequest updateVariableRequest
+	err := json.Unmarshal([]byte(body), &updateRequest)
+	if err != nil {
 		return nil, err
 	}
 
-	_, err := h.variablesSvc.SetVariable(ctx, &monolith.SetVariableRequest{
-		Key:     parsed.VarName,
-		Formula: parsed.Formula,
+	matches := rePathUpdateVar.FindStringSubmatch(event.Path)
+	if len(matches) != 2 {
+		panic("Expected ID in path.")
+	}
+
+	id := matches[1]
+	varReq := &monolith.SetVariableRequest{
+		Id: id,
+	}
+	if updateRequest.Name != nil {
+		varReq.Name = *updateRequest.Name
+	}
+	if updateRequest.Formula != nil {
+		varReq.Formula = *updateRequest.Formula
+	}
+
+	resp, err := h.variablesSvc.SetVariable(ctx, varReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var out updateVariableResponse
+	if resp.Error != nil {
+		out.Error = &resp.Error.Message
+	}
+
+	if resp.Variable != nil {
+		out.State, err = h.buildVariableState(ctx, resp.Variable)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(event),
+		Body:            b,
+		IsBase64Encoded: false,
+	}, nil
+}
+
+func (h *Handler) buildVariableState(ctx context.Context, v *monolith.Variable) (*variableState, error) {
+	state := &variableState{
+		Id:      v.VariableId,
+		Name:    v.Name,
+		Formula: v.Formula,
+	}
+
+	// Execute the formula
+	formula := v.Formula
+	result, err := h.resolverSvc.Resolve(ctx, &resolver.ResolveRequest{
+		Formula: formula,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &ApiResponse{
-		StatusCode:      http.StatusOK,
-		Headers:         determineCorsHeaders(req),
-		Body:            []byte("{}"),
-		IsBase64Encoded: false,
-	}, nil
+	state.Result, err = mapResolveResponse(result)
+
+	return state, nil
 }
 
-type setVariableRequest struct {
-	VarName string `json:"varName"`
-	Formula string `json:"formula"`
+func (h *Handler) doGetVariables(ctx context.Context, event *Event) (*Response, error) {
+	ids := event.MultiValueQueryStringParameters["id"]
+	resp, err := h.variablesSvc.GetVariables(ctx, &monolith.GetVariablesRequest{
+		Ids: ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var out getVariablesResponse
+	out.Variables = make([]*variableState, len(resp.Values))
+	for i, v := range resp.Values {
+		out.Variables[i], err = h.buildVariableState(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(event),
+		Body:            b,
+		IsBase64Encoded: false,
+	}, nil
 }
 
 func normaliseHeaders(in map[string]string) map[string]string {
@@ -176,7 +270,7 @@ func normaliseHeaders(in map[string]string) map[string]string {
 	return out
 }
 
-func determineCorsHeaders(req *ApiEvent) map[string]string {
+func determineCorsHeaders(req *Event) map[string]string {
 	origin, ok := normaliseHeaders(req.Headers)[headerOrigin]
 	if !ok || origin == "" {
 		log.Println("No origin")

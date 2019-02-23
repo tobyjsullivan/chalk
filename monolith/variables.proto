@@ -10,17 +10,21 @@ service Variables {
 }
 
 message GetVariablesRequest {
-    repeated string keys = 1;
+    repeated string ids = 1;
+    repeated string names = 2;
 }
 
 message GetVariablesResponse {
-
     repeated Variable values = 1;
 }
 
 message SetVariableRequest {
-    string key = 1;
-    string formula = 2;
+    // If included, updates the existing variable. Otherwise, creates a new variable.
+    string id = 1;
+    // If included, renames the variable.
+    string name = 2;
+    // If included, updates the variable value.
+    string formula = 3;
 }
 
 message SetVariableResponse {
