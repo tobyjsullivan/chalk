@@ -41,11 +41,10 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 	}
 
 	for _, name := range in.Names {
-		id, err := s.findVariableId(name)
-		if err != nil {
-			return nil, err
+		id := s.findVariableId(name)
+		if id != nil {
+			ids = append(ids, *id)
 		}
-		ids = append(ids, id)
 	}
 
 	out := make([]*monolith.Variable, len(ids))
@@ -175,14 +174,15 @@ func (s *variablesServer) getVariable(id uuid.UUID) (*state, error) {
 	return state, nil
 }
 
-func (s *variablesServer) findVariableId(name string) (uuid.UUID, error) {
+func (s *variablesServer) findVariableId(name string) *uuid.UUID {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
 	id, ok := s.nameIndex[name]
 	if !ok {
-		return uuid.UUID{}, fmt.Errorf("variable not found: %s", id)
+		// It is reasonable that a search by name will not match. This is not an error. Return nil.
+		return nil
 	}
 
-	return id, nil
+	return &id
 }

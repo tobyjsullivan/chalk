@@ -169,6 +169,7 @@ func (h *Handler) doUpdateVariable(ctx context.Context, event *Event) (*Response
 	}
 
 	id := matches[1]
+	log.Println("Updating", id, ";", updateRequest.Name, ";", updateRequest.Formula)
 	varReq := &monolith.SetVariableRequest{
 		Id: id,
 	}
