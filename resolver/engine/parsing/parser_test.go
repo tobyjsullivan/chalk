@@ -11,23 +11,23 @@ func TestParser_ParseFunctions(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	if ast.FunctionCall == nil {
+	if ast.ApplicationVal == nil {
 		t.Fatalf("Expected SUM function; got: %v", ast)
 	}
 
-	if ast.FunctionCall.FuncName != "SUM" {
-		t.Errorf("Expected function name \"SUM\"; got %v", ast.FunctionCall.FuncName)
+	if funcName := *ast.ApplicationVal.Expression.VariableVal; funcName != "SUM" {
+		t.Errorf("Expected variable \"SUM\"; got %v", funcName)
 	}
 
-	if ast.FunctionCall.Argument == nil {
+	if ast.ApplicationVal.Argument == nil {
 		t.Fatal("Expected arg tuple; got nil")
 	}
 
-	if n := len(ast.FunctionCall.Argument.Elements); n != 2 {
+	if n := len(ast.ApplicationVal.Argument.Elements); n != 2 {
 		t.Fatalf("Expected 2 elements in arg tuple, got %d", n)
 	}
 
-	if arg1 := ast.FunctionCall.Argument.Elements[0]; arg1 == nil || arg1.NumberVal == nil {
+	if arg1 := ast.ApplicationVal.Argument.Elements[0]; arg1 == nil || arg1.NumberVal == nil {
 		t.Fatalf("Expected number, got %v", arg1)
 	} else if *arg1.NumberVal != "4" {
 		t.Errorf("Expected \"4\"; got %s", *arg1.NumberVal)
@@ -124,5 +124,71 @@ func TestParse_Record(t *testing.T) {
 	}
 	if ageVal := *ageProp.Value.NumberVal; ageVal != "27" {
 		t.Errorf("Expected value \"27\"; got %s", ageVal)
+	}
+}
+
+func TestParser_Lambda(t *testing.T) {
+	input := "(a) => a"
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if ast.Lambda == nil {
+		t.Fatalf("Expected lambda; got: %v", ast)
+	}
+
+	if n := len(ast.Lambda.FreeVariables.Elements); n != 1 {
+		t.Errorf("Expected one argument; got %d", n)
+	}
+
+	if ast.Lambda.Expression.VariableVal == nil {
+		t.Errorf("Expected variable; got %+v", ast.Lambda.Expression)
+	}
+}
+
+func TestParser_Currying(t *testing.T) {
+	input := "var1()(a)"
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	outter := ast.ApplicationVal
+	if outter == nil {
+		t.Fatalf("Expected SUM function; got: %v", ast)
+	}
+
+	if outter.Expression.ApplicationVal == nil {
+		t.Fatal("Expected an application")
+	}
+
+	inner := outter.Expression.ApplicationVal
+	if inner == nil {
+		t.Fatal("Expected an inner application")
+	}
+
+	if inner.Expression.VariableVal == nil {
+		t.Fatalf("Expected a variable, var1; got: %+v", inner.Expression)
+	}
+
+	if vName := *inner.Expression.VariableVal; vName != "var1" {
+		t.Errorf("Expected variable to be `var1`; got %s", vName)
+	}
+
+	if n := len(inner.Argument.Elements); n != 0 {
+		t.Errorf("Expected 0 args on inner expression; got %d", n)
+	}
+
+	if n := len(outter.Argument.Elements); n != 1 {
+		t.Errorf("Expected 1 arg on outter expression; got %d", n)
+	}
+
+	if arg := outter.Argument.Elements[0]; arg.VariableVal == nil {
+		t.Errorf("Expected arg to be variable; got %+v", arg)
 	}
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/tobyjsullivan/chalk/resolver/engine/types"
+
 	"github.com/tobyjsullivan/chalk/monolith"
 	"google.golang.org/grpc"
-
-	rpc "github.com/tobyjsullivan/chalk/resolver"
 )
 
 type fakeVarSvc struct {
@@ -29,102 +29,95 @@ func (*fakeVarSvc) SetVariable(ctx context.Context, in *monolith.SetVariableRequ
 
 func TestQuery(t *testing.T) {
 	fakeVarSvc := &fakeVarSvc{}
-	req := &rpc.ResolveRequest{
-		Formula: "SUM(1, 2, 3)",
-	}
+	req := "SUM(1, 2, 3)"
 
 	e := NewEngine(fakeVarSvc)
-	res := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), req)
 
-	if res.Error != "" {
-		t.Fatalf("Unexpected error response: %s", res.Error)
+	if err != nil {
+		t.Fatalf("Unexpected error response: %s", err)
 	}
 
-	if res.Result.Type != rpc.ObjectType_NUMBER {
-		t.Errorf("Unexpected result type: %s", res.Result.Type)
+	n, err := res.ToNumber()
+	if res.Type() != types.TypeNumber {
+		t.Error("Unexpected cast error:", err)
 	}
-
-	if v := res.Result.NumberValue; v != 6.0 {
-		t.Errorf("Unexpected result value: %f", v)
+	if n != 6.0 {
+		t.Errorf("Unexpected result value: %f", n)
 	}
 }
 
 func TestQueryNested(t *testing.T) {
 	fakeVarSvc := &fakeVarSvc{}
-	req := &rpc.ResolveRequest{
-		Formula: "CONCATENATE(\"Hello, \", CONCATENATE(\"World\", \"!\"))",
-	}
+	req := "CONCATENATE(\"Hello, \", CONCATENATE(\"World\", \"!\"))"
 
 	e := NewEngine(fakeVarSvc)
-	res := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), req)
 
-	if res.Error != "" {
-		t.Fatalf("Unexpected error response: %s", res.Error)
+	if err != nil {
+		t.Fatalf("Unexpected error response: %s", err)
 	}
 
-	if res.Result.Type != rpc.ObjectType_STRING {
-		t.Errorf("Unexpected result type: %s", res.Result.Type)
+	s, err := res.ToString()
+	if err != nil {
+		t.Error("Unexpected cast error:", err)
 	}
 
-	if v := res.Result.StringValue; v != "Hello, World!" {
-		t.Errorf("Unexpected result value: %s", v)
+	if s != "Hello, World!" {
+		t.Errorf("Unexpected result value: %s", s)
 	}
 }
 
 func TestListWithVar(t *testing.T) {
 	fakeVarSvc := &fakeVarSvc{}
-	req := &rpc.ResolveRequest{
-		Formula: "[var1]",
-	}
+	req := "[var1]"
 
 	e := NewEngine(fakeVarSvc)
-	res := e.Query(context.Background(), req)
-
-	if res.Error != "" {
-		t.Fatalf("Unexpected error response: %s", res.Error)
+	res, err := e.Query(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Unexpected error response: %s", err)
 	}
 
-	if res.Result.Type != rpc.ObjectType_LIST {
-		t.Errorf("Unexpected result type: %s", res.Result.Type)
+	l, err := res.ToList()
+	if err != nil {
+		t.Fatal("Unexpected cast error:", err)
+	}
+	if n := len(l.Elements); n != 1 {
+		t.Errorf("Expected exactly 1 element; found %d", n)
 	}
 
-	element := res.Result.ListValue.Elements[0]
-	if element.Type != rpc.ObjectType_STRING {
-		t.Errorf("Unexpected element type: %s", res.Result.Type)
+	s, err := l.Elements[0].ToString()
+	if err != nil {
+		t.Fatal("Unexpected cast error:", err)
 	}
-
-	if v := element.StringValue; v != "Hello" {
-		t.Errorf("Unexpected element value: %s", v)
+	if s != "Hello" {
+		t.Errorf("Unexpected element value: %s", s)
 	}
 }
 
 func TestLambda(t *testing.T) {
 	fakeVarSvc := &fakeVarSvc{}
 
-	req := &rpc.ResolveRequest{
-		Formula: "(a, b) => SUM(a, b)",
-	}
+	req := "(a, b) => SUM(a, b)"
 
 	e := NewEngine(fakeVarSvc)
-	res := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), req)
 
-	if res.Error != "" {
-		t.Fatalf("Unexpected error response: %s", res.Error)
+	if err != nil {
+		t.Fatalf("Unexpected error response: %s", err)
 	}
 
-	if res.Result.Type != rpc.ObjectType_LAMBDA {
-		t.Errorf("Unexpected result type: %s", res.Result.Type)
+	l, err := res.ToLambda()
+	if err != nil {
+		t.Error("Unexpected error in cast:", err)
 	}
-
-	if varCount := len(res.Result.LambdaValue.FreeVariables); varCount != 2 {
-		t.Errorf("Unexpected free variable count: %d", varCount)
+	if n := len(l.FreeVariables); n != 2 {
+		t.Errorf("Unexpected free variable count: %d", n)
 	}
-
-	if varA := res.Result.LambdaValue.FreeVariables[0]; varA != "a" {
+	if varA := l.FreeVariables[0]; varA != "a" {
 		t.Errorf("Unexpected free variable: %s", varA)
 	}
-
-	if varB := res.Result.LambdaValue.FreeVariables[1]; varB != "b" {
+	if varB := l.FreeVariables[1]; varB != "b" {
 		t.Errorf("Unexpected free variable: %s", varB)
 	}
 

@@ -47,8 +47,49 @@ func TestLexer_decimal(t *testing.T) {
 
 	lex := NewLexer(NewInputStream(input))
 
-	if tok := lex.Next(); tok.Type != tokenNumber || tok.Value != "39.234" {
-		t.Error("Expected ", tokenNumber, "29.234", "; got", tok.Type, tok.Value)
+	expected := "39.234"
+	if tok := lex.Next(); tok.Type != tokenNumber || tok.Value != expected {
+		t.Error("Expected ", tokenNumber, expected, "; got", tok.Type, tok.Value)
+	}
+}
+
+func TestCurrying(t *testing.T) {
+	input := "var1()(b)"
+
+	lex := NewLexer(NewInputStream(input))
+
+	expected := "var1"
+	if tok := lex.Next(); tok.Type != tokenIdentifier || tok.Value != expected {
+		t.Error("Expected ", tokenIdentifier, expected, "; got", tok.Type, tok.Value)
+	}
+
+	expected = "("
+	if tok := lex.Next(); tok.Type != tokenPunctuation || tok.Value != expected {
+		t.Error("Expected ", tokenPunctuation, expected, "; got", tok.Type, tok.Value)
+	}
+
+	expected = ")"
+	if tok := lex.Next(); tok.Type != tokenPunctuation || tok.Value != expected {
+		t.Error("Expected ", tokenPunctuation, expected, "; got", tok.Type, tok.Value)
+	}
+
+	expected = "("
+	if tok := lex.Next(); tok.Type != tokenPunctuation || tok.Value != expected {
+		t.Error("Expected ", tokenPunctuation, expected, "; got", tok.Type, tok.Value)
+	}
+
+	expected = "b"
+	if tok := lex.Next(); tok.Type != tokenIdentifier || tok.Value != expected {
+		t.Error("Expected ", tokenIdentifier, expected, "; got", tok.Type, tok.Value)
+	}
+
+	expected = ")"
+	if tok := lex.Next(); tok.Type != tokenPunctuation || tok.Value != expected {
+		t.Error("Expected ", tokenPunctuation, expected, "; got", tok.Type, tok.Value)
+	}
+
+	if tok := lex.Next(); tok != nil {
+		t.Error("Expected EOF; got ", tok.Type, tok.Value)
 	}
 }
 

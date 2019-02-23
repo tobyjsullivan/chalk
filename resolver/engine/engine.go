@@ -9,7 +9,6 @@ import (
 
 	"github.com/tobyjsullivan/chalk/monolith"
 
-	"github.com/tobyjsullivan/chalk/resolver"
 	"github.com/tobyjsullivan/chalk/resolver/engine/lib/std"
 	"github.com/tobyjsullivan/chalk/resolver/engine/parsing"
 	"github.com/tobyjsullivan/chalk/resolver/engine/types"
@@ -25,18 +24,13 @@ func NewEngine(varSvc monolith.VariablesClient) *Engine {
 	}
 }
 
-func (e *Engine) Query(ctx context.Context, request *resolver.ResolveRequest) *resolver.ResolveResponse {
-	function, err := parseFormula(request.Formula)
+func (e *Engine) Query(ctx context.Context, formula string) (*types.Object, error) {
+	function, err := parseFormula(formula)
 	if err != nil {
-		return toErrorResult(err)
+		return nil, err
 	}
 
-	result, err := e.resolve(ctx, function, []string{})
-	if err != nil {
-		return toErrorResult(err)
-	}
-
-	return toResult(result)
+	return e.resolve(ctx, function, []string{})
 }
 
 func parseFormula(formula string) (*types.Object, error) {
@@ -86,9 +80,14 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 		}
 
 		return types.NewRecord(props), nil
-	} else if ast.FunctionCall != nil {
-		args := make([]*types.Object, len(ast.FunctionCall.Argument.Elements))
-		for i, arg := range ast.FunctionCall.Argument.Elements {
+	} else if ast.ApplicationVal != nil {
+		exp, err := mapAst(ast.ApplicationVal.Expression)
+		if err != nil {
+			return nil, err
+		}
+
+		args := make([]*types.Object, len(ast.ApplicationVal.Argument.Elements))
+		for i, arg := range ast.ApplicationVal.Argument.Elements {
 			var err error
 			args[i], err = mapAst(arg)
 			if err != nil {
@@ -96,7 +95,7 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 			}
 		}
 
-		return types.NewApplication(ast.FunctionCall.FuncName, args), nil
+		return types.NewApplication(exp, args), nil
 	} else if ast.VariableVal != nil {
 		return types.NewVariable(*ast.VariableVal), nil
 	} else if ast.Lambda != nil {
@@ -104,7 +103,23 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 		if err != nil {
 			return nil, err
 		}
-		return types.NewLambda(ast.Lambda.FreeVariables, exp), nil
+
+		// We expect each element of the free vars tuple to be simple named variables.
+		freeVars := make([]string, len(ast.Lambda.FreeVariables.Elements))
+		for i, element := range ast.Lambda.FreeVariables.Elements {
+			variable, err := mapAst(element)
+			if err != nil {
+				return nil, err
+			}
+			if t := variable.Type(); t != types.TypeVariable {
+				return nil, fmt.Errorf("expected lambda param to be variable; found %+v", t)
+			}
+
+			v, _ := variable.ToVariable()
+			freeVars[i] = v.Name
+		}
+
+		return types.NewLambda(freeVars, exp), nil
 	} else {
 		return nil, fmt.Errorf("unknown ast node: %v", ast)
 	}
@@ -138,6 +153,8 @@ func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory 
 		return e.resolveApplication(ctx, a, varHistory)
 	case types.TypeLambda:
 		return formula, nil
+	case types.TypeFunction:
+		return formula, nil
 	default:
 		return nil, fmt.Errorf("unrecognized argument type %s", formula.Type())
 	}
@@ -168,26 +185,32 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 		}
 	}
 
-	if match == nil {
-		if required {
-			return nil, fmt.Errorf("variable `%s` is not defined", varName)
+	if match != nil {
+		f := match.Formula
+
+		// get object
+		o, err := parseFormula(f)
+		if err != nil {
+			return nil, err
 		}
-		return nil, nil
+
+		// resolve
+		newHist := make([]string, len(varHistory)+1)
+		copy(newHist, varHistory)
+		newHist[len(varHistory)] = varName
+		return e.resolve(ctx, o, newHist)
 	}
 
-	f := match.Formula
-
-	// get object
-	o, err := parseFormula(f)
-	if err != nil {
-		return nil, err
+	// Try to find a built-in value
+	builtin := findBuiltinVariable(varName)
+	if builtin != nil {
+		return builtin, nil
 	}
 
-	// resolve
-	newHist := make([]string, len(varHistory)+1)
-	copy(newHist, varHistory)
-	newHist[len(varHistory)] = varName
-	return e.resolve(ctx, o, newHist)
+	if required {
+		return nil, fmt.Errorf("variable `%s` is not defined", varName)
+	}
+	return nil, nil
 }
 
 func (e *Engine) resolveList(ctx context.Context, list *types.List, varHistory []string) (*types.Object, error) {
@@ -218,72 +241,46 @@ func (e *Engine) resolveRecord(ctx context.Context, rec *types.Record, varHistor
 }
 
 func (e *Engine) resolveApplication(ctx context.Context, app *types.Application, varHistory []string) (*types.Object, error) {
-	f, err := e.findFunction(ctx, app.FunctionName, varHistory)
+	exp, err := e.resolve(ctx, app.Expression, varHistory)
 	if err != nil {
 		return nil, err
 	}
 
-	arguments := make([]*types.Object, len(app.Arguments))
+	// Resolve all arguments
+	resolvedArgs := make([]*types.Object, len(app.Arguments))
 	for i, arg := range app.Arguments {
-		arguments[i] = arg
-
-		// Lookup any variable values.
-		if arg.Type() == types.TypeVariable {
-			v, _ := arg.ToVariable()
-
-			arguments[i], err = e.resolveVariable(ctx, v, varHistory, true)
-			if err != nil {
-				return nil, err
-			}
+		resolvedArgs[i], err = e.resolve(ctx, arg, varHistory)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	// Resolve any nested applications.
-	for i, arg := range arguments {
-		if arg.Type() == types.TypeApplication {
-			a, _ := arg.ToApplication()
-			arguments[i], err = e.resolveApplication(ctx, a, varHistory)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if exp.Type() == types.TypeFunction {
+		// Execute functions inline.
+		f, _ := exp.ToFunction()
+		return f(resolvedArgs)
 	}
 
-	return f(arguments)
-}
+	if exp.Type() != types.TypeLambda {
+		return nil, fmt.Errorf("attempt to call non-callable: %s", exp.Type())
+	}
 
-func (e *Engine) findFunction(ctx context.Context, funcName string, varHistory []string) (types.Function, error) {
-	// Check if function is a defined variable.
-	v, err := e.resolveVariable(ctx, &types.Variable{Name: funcName}, varHistory, false)
+	// Bind any arguments for lambdas
+	l, _ := exp.ToLambda()
+	varMap := make(map[string]*types.Object)
+	for i, varName := range l.FreeVariables {
+		if i >= len(resolvedArgs) {
+			return nil, fmt.Errorf("incomplete var set provided. missing: %v", l.FreeVariables[i:])
+		}
+		varMap[varName] = resolvedArgs[i]
+	}
+
+	bound, err := bindVariables(l.Expression, varMap)
 	if err != nil {
 		return nil, err
 	}
-	if v != nil {
-		if v.Type() != types.TypeLambda {
-			return nil, fmt.Errorf("variable `%s` is not a lambda", funcName)
-		}
 
-		l, _ := v.ToLambda()
-		return func(paramTuple []*types.Object) (*types.Object, error) {
-			varMap := make(map[string]*types.Object)
-			for i, varName := range l.FreeVariables {
-				if i >= len(paramTuple) {
-					return nil, fmt.Errorf("incomplete var set provided. missing: %v", l.FreeVariables[i:])
-				}
-				varMap[varName] = paramTuple[i]
-			}
-
-			bound, err := bindVariables(l.Expression, varMap)
-			if err != nil {
-				return nil, err
-			}
-
-			return e.resolve(ctx, bound, varHistory)
-		}, nil
-	}
-
-	// Otherwise try a builtin
-	return findBuiltinFunction(funcName)
+	return e.resolve(ctx, bound, varHistory)
 }
 
 func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.Object, error) {
@@ -331,7 +328,7 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 				return nil, err
 			}
 		}
-		return types.NewApplication(a.FunctionName, args), nil
+		return types.NewApplication(a.Expression, args), nil
 	case types.TypeLambda:
 		l, _ := obj.ToLambda()
 
@@ -348,110 +345,24 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 			return nil, err
 		}
 		return types.NewLambda(l.FreeVariables, exp), nil
+	case types.TypeFunction:
+		return obj, nil
 	default:
 		return nil, fmt.Errorf("unexpected object type: %v", obj.Type())
 	}
 }
 
-func toResult(res *types.Object) *resolver.ResolveResponse {
-	obj, err := toResultObject(res)
-	if err != nil {
-		return toErrorResult(err)
-	}
-
-	return &resolver.ResolveResponse{
-		Result: obj,
-	}
-}
-
-func toResultObject(obj *types.Object) (*resolver.Object, error) {
-	if obj == nil {
-		return nil, nil
-	}
-	switch obj.Type() {
-	case types.TypeNumber:
-		n, _ := obj.ToNumber()
-		return &resolver.Object{
-			Type:        resolver.ObjectType_NUMBER,
-			NumberValue: n,
-		}, nil
-	case types.TypeString:
-		s, _ := obj.ToString()
-		return &resolver.Object{
-			Type:        resolver.ObjectType_STRING,
-			StringValue: s,
-		}, nil
-	case types.TypeList:
-		list, _ := obj.ToList()
-
-		els := make([]*resolver.Object, len(list.Elements))
-		var err error
-		for i, el := range list.Elements {
-			els[i], err = toResultObject(el)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return &resolver.Object{
-			Type: resolver.ObjectType_LIST,
-			ListValue: &resolver.List{
-				Elements: els,
-			},
-		}, nil
-	case types.TypeRecord:
-		record, _ := obj.ToRecord()
-
-		props := make([]*resolver.RecordProperty, 0, len(record.Properties))
-		for k, v := range record.Properties {
-			value, err := toResultObject(v)
-			if err != nil {
-				return nil, err
-			}
-
-			props = append(props, &resolver.RecordProperty{
-				Name:  k,
-				Value: value,
-			})
-		}
-
-		return &resolver.Object{
-			Type: resolver.ObjectType_RECORD,
-			RecordValue: &resolver.Record{
-				Properties: props,
-			},
-		}, nil
-	case types.TypeLambda:
-		lambda, _ := obj.ToLambda()
-
-		return &resolver.Object{
-			Type: resolver.ObjectType_LAMBDA,
-			LambdaValue: &resolver.Lambda{
-				FreeVariables: lambda.FreeVariables,
-			},
-		}, nil
-	default:
-		return nil, fmt.Errorf("unexpected result type: %v", obj.Type())
-	}
-}
-
-func toErrorResult(err error) *resolver.ResolveResponse {
-	return &resolver.ResolveResponse{
-		Error: fmt.Sprint(err),
-	}
-}
-
-func findBuiltinFunction(funcName string) (types.Function, error) {
-	switch strings.ToLower(funcName) {
+func findBuiltinVariable(varName string) *types.Object {
+	switch strings.ToLower(varName) {
 	case "sum":
-		return std.Sum, nil
+		return types.NewFunction(std.Sum)
 	case "concatenate":
-		return std.Concatenate, nil
+		return types.NewFunction(std.Concatenate)
 	case "love":
-		return std.Love, nil
+		return types.NewFunction(std.Love)
 	case "list":
-		return std.List, nil
+		return types.NewFunction(std.List)
 	default:
-		return nil, errors.New("function not found")
+		return nil
 	}
 }

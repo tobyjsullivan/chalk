@@ -17,10 +17,49 @@ func NewParser(l *Lexer) *Parser {
 }
 
 func (p *Parser) Parse() (*ASTNode, error) {
-	return p.parseEntity()
+	res, err := p.parseEntity()
+	if err != nil {
+		return nil, err
+	}
+
+	// Expect EOF
+	if next := p.l.Next(); next != nil {
+		return nil, fmt.Errorf("expected EOF; found %+v", next)
+	}
+
+	return res, nil
 }
 
 func (p *Parser) parseEntity() (*ASTNode, error) {
+	entity, err := p.parseImmediateEntity()
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for a tuple argument set, indicating an expression.
+	return p.maybeParseApplication(entity)
+}
+
+func (p *Parser) maybeParseApplication(entity *ASTNode) (*ASTNode, error) {
+	n := p.l.Peek()
+	if n == nil || n.Type != tokenPunctuation || n.Value != "(" {
+		return entity, nil
+	}
+
+	t, err := p.parseTuple()
+	if err != nil {
+		return nil, err
+	}
+
+	return p.maybeParseApplication(&ASTNode{
+		ApplicationVal: &Application{
+			Expression: entity,
+			Argument:   t,
+		},
+	})
+}
+
+func (p *Parser) parseImmediateEntity() (*ASTNode, error) {
 	tok := p.l.Peek()
 	if tok == nil {
 		return nil, nil
@@ -56,13 +95,36 @@ func (p *Parser) parseEntity() (*ASTNode, error) {
 				ListVal: list,
 			}, nil
 		case "(":
-			// Handle lambda expression
-			lambda, err := p.parseLambda()
+			// Parse a tuple
+			t, err := p.parseTuple()
 			if err != nil {
 				return nil, err
 			}
+
+			// Check if maybe a lambda?
+			next := p.l.Peek()
+			if next != nil && next.Type == tokenPunctuation && next.Value == "=>" {
+				// Expect "=>"
+				if arrow := p.l.Next(); arrow == nil || arrow.Type != tokenPunctuation || arrow.Value != "=>" {
+					return nil, fmt.Errorf("expected `=>`; got %+v", arrow)
+				}
+
+				exp, err := p.parseEntity()
+				if err != nil {
+					return nil, err
+				}
+
+				return &ASTNode{
+					Lambda: &Lambda{
+						FreeVariables: t,
+						Expression:    exp,
+					},
+				}, nil
+			}
+
+			// It's just a tuple
 			return &ASTNode{
-				Lambda: lambda,
+				TupleVal: t,
 			}, nil
 		default:
 			return nil, fmt.Errorf("expected Number, String, Identifier, `{`, or `[`; got: %+v", tok)
@@ -70,21 +132,6 @@ func (p *Parser) parseEntity() (*ASTNode, error) {
 	case tokenIdentifier:
 		p.l.Next()
 		fName := tok.Value
-		next := p.l.Peek()
-		if next != nil && next.Type == tokenPunctuation && next.Value == "(" {
-			// Arguments tuple implies function call
-			argTuple, err := p.parseTuple()
-			if err != nil {
-				return nil, err
-			}
-
-			return &ASTNode{
-				FunctionCall: &FunctionCall{
-					FuncName: fName,
-					Argument: argTuple,
-				},
-			}, nil
-		}
 
 		// Must be a variable
 		return &ASTNode{
@@ -241,81 +288,62 @@ func (p *Parser) parseTuple() (*Tuple, error) {
 	}, nil
 }
 
-func (p *Parser) parseLambda() (*Lambda, error) {
-	freeVariables, err := p.parseFreeVariables()
-	if err != nil {
-		return nil, err
-	}
-
-	// Expect "=>"
-	if arrow := p.l.Next(); arrow == nil || arrow.Type != tokenPunctuation || arrow.Value != "=>" {
-		return nil, fmt.Errorf("expected `=>`; got %+v", arrow)
-	}
-
-	exp, err := p.parseEntity()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Lambda{
-		FreeVariables: freeVariables,
-		Expression:    exp,
-	}, nil
-}
-
-func (p *Parser) parseFreeVariables() ([]string, error) {
-	if open := p.l.Next(); open == nil || open.Type != tokenPunctuation || open.Value != "(" {
-		return nil, fmt.Errorf("expected `(`; got %+v", open)
-	}
-
-	var freeVars []string
-	for {
-		tok := p.l.Peek()
-		if tok == nil {
-			return nil, errors.New("unexpected end of input")
-		} else if tok.Type == tokenPunctuation && tok.Value == ")" {
-			p.l.Next()
-			break
-		} else if tok.Type == tokenIdentifier {
-			v := p.l.Next()
-			freeVars = append(freeVars, v.Value)
-
-			// Expect comma or close.
-			nTok := p.l.Next()
-			if nTok == nil {
-				return nil, errors.New("unexpected end of input")
-			} else if nTok.Type == tokenPunctuation && nTok.Value == ")" {
-				break
-			} else if nTok.Type != tokenPunctuation || nTok.Value != "," {
-				return nil, fmt.Errorf("expected `,` or `)`; got %+v", nTok)
-			}
-		} else {
-			return nil, fmt.Errorf("expected identifier or `)`; got %+v", tok)
-		}
-	}
-
-	return freeVars, nil
-}
-
 type ASTNode struct {
-	FunctionCall *FunctionCall
-	ListVal      *List
-	NumberVal    *string
-	RecordVal    *Record
-	StringVal    *string
-	TupleVal     *Tuple
-	VariableVal  *string
-	Lambda       *Lambda
+	ApplicationVal *Application
+	ListVal        *List
+	NumberVal      *string
+	RecordVal      *Record
+	StringVal      *string
+	TupleVal       *Tuple
+	VariableVal    *string
+	Lambda         *Lambda
+}
+
+func (n *ASTNode) String() string {
+	if n.ApplicationVal != nil {
+		return fmt.Sprintf(
+			"Application{ Expression:%v, Argument:%v }",
+			n.ApplicationVal.Expression,
+			n.ApplicationVal.Argument,
+		)
+	}
+	if n.ListVal != nil {
+		return fmt.Sprintf("List{Elements:%v}", n.ListVal.Elements)
+	}
+	if n.NumberVal != nil {
+		return fmt.Sprintf("Number{%v}", n.NumberVal)
+	}
+	if n.RecordVal != nil {
+		return fmt.Sprintf("Record{%v}", n.RecordVal.Properties)
+	}
+	if n.StringVal != nil {
+		return fmt.Sprintf("String{%v}", n.StringVal)
+	}
+	if n.TupleVal != nil {
+		return fmt.Sprintf("Tuple{%v}", n.TupleVal.Elements)
+	}
+	if n.VariableVal != nil {
+		return fmt.Sprintf("Variable{%v}", n.VariableVal)
+	}
+	if n.Lambda != nil {
+		return fmt.Sprintf(
+			"Lambda{FreeVariables:%v, Expression: %v}",
+			n.Lambda.FreeVariables,
+			n.Lambda.Expression,
+		)
+	}
+
+	return "EmptyAST"
 }
 
 type Lambda struct {
-	FreeVariables []string
+	FreeVariables *Tuple
 	Expression    *ASTNode
 }
 
-type FunctionCall struct {
-	Argument *Tuple
-	FuncName string
+type Application struct {
+	Expression *ASTNode
+	Argument   *Tuple
 }
 
 type List struct {

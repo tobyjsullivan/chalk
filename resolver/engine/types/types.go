@@ -1,9 +1,13 @@
 package types
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 const (
 	TypeApplication TypeName = "application"
+	TypeFunction             = "function" // A function differs from a lambda in that it executes code to resolve.
 	TypeList                 = "list"
 	TypeNumber               = "number"
 	TypeLambda               = "lambda"
@@ -15,8 +19,8 @@ const (
 type TypeName string
 
 type Application struct {
-	FunctionName string
-	Arguments    []*Object
+	Expression *Object
+	Arguments  []*Object
 }
 
 type List struct {
@@ -39,6 +43,7 @@ type Variable struct {
 type Object struct {
 	objectType       TypeName
 	applicationValue *Application
+	functionValue    Function
 	listValue        *List
 	numberValue      float64
 	lambdaValue      *Lambda
@@ -61,13 +66,20 @@ func NewNumber(n float64) *Object {
 	}
 }
 
-func NewApplication(funcName string, args []*Object) *Object {
+func NewApplication(expression *Object, args []*Object) *Object {
 	return &Object{
 		objectType: TypeApplication,
 		applicationValue: &Application{
-			FunctionName: funcName,
-			Arguments:    args,
+			Expression: expression,
+			Arguments:  args,
 		},
+	}
+}
+
+func NewFunction(f Function) *Object {
+	return &Object{
+		objectType:    TypeFunction,
+		functionValue: f,
 	}
 }
 
@@ -114,7 +126,7 @@ func (o *Object) Type() TypeName {
 
 func (o *Object) ToString() (string, error) {
 	if o.objectType != TypeString {
-		return "", errors.New("value is not a string")
+		return "", fmt.Errorf("value is not a string: %+v", o)
 	}
 
 	return o.stringValue, nil
@@ -134,6 +146,14 @@ func (o *Object) ToApplication() (*Application, error) {
 	}
 
 	return o.applicationValue, nil
+}
+
+func (o *Object) ToFunction() (Function, error) {
+	if o.objectType != TypeFunction {
+		return nil, errors.New("value is not a function")
+	}
+
+	return o.functionValue, nil
 }
 
 func (o *Object) ToLambda() (*Lambda, error) {
