@@ -6,17 +6,17 @@ variable "vpc_cidr" {
 
 variable "public_subnets_cidr" {
   type = "list"
-  default = ["10.10.0.0/24"]
+  default = ["10.10.0.0/24", "10.10.1.0/24"]
 }
 
 variable "private_subnets_cidr" {
   type = "list"
-  default = ["10.10.1.0/24"]
+  default = ["10.10.2.0/24", "10.10.3.0/24"]
 }
 
 variable "availability_zones" {
   type = "list"
-  default = ["ap-southeast-2a"]
+  default = ["ap-southeast-2a","ap-southeast-2b"]
 }
 
 /*
@@ -47,6 +47,35 @@ resource "aws_ecs_task_definition" "chalk_api" {
 
   container_definitions = <<DEFINITION
 [
+  {
+    "essential": true,
+    "image": "${aws_ecr_repository.api.repository_url}",
+    "name": "api",
+    "environment": [
+      {
+        "name": "RESOLVER_SVC",
+        "value": "localhost:8082"
+      },
+      {
+        "name": "VARIABLES_SVC",
+        "value": "localhost:8081"
+      }
+    ],
+    "networkMode": "awsvpc",
+    "portMappings": [
+      {
+        "containerPort": 8080
+      }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${aws_cloudwatch_log_group.chalk_services.name}",
+        "awslogs-region": "${data.aws_region.current.name}",
+        "awslogs-stream-prefix": "api"
+      }
+    }
+  },
   {
     "essential": true,
     "image": "${aws_ecr_repository.monolith_svc.repository_url}",
@@ -111,12 +140,22 @@ resource "aws_ecs_service" "main" {
   task_definition = "${aws_ecs_task_definition.chalk_api.arn}"
   desired_count = 1
   launch_type = "FARGATE"
-  depends_on = ["aws_iam_role_policy.ecs_execution_role_policy"]
+  depends_on = [
+    "aws_iam_role_policy.ecs_execution_role_policy",
+    "aws_alb_target_group.alb_target_group"]
 
   network_configuration {
-    security_groups = ["${aws_security_group.ecs_service.id}"]
-    subnets = ["${aws_subnet.public_subnet.*.id}"]
+    security_groups = [
+      "${aws_security_group.ecs_service.id}"]
+    subnets = [
+      "${aws_subnet.public_subnet.*.id}"]
     assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = "${aws_alb_target_group.alb_target_group.arn}"
+    container_name = "api"
+    container_port = "8080"
   }
 }
 
@@ -181,7 +220,69 @@ resource "aws_internet_gateway" "ig" {
 }
 
 /*
- * Permissions Management
+ * Load balancer
+ */
+resource "aws_alb_target_group" "alb_target_group" {
+  name_prefix = "chalk-"
+  port     = 8080
+  protocol = "HTTP"
+  vpc_id   = "${aws_vpc.main.id}"
+  target_type = "ip"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on        = ["aws_alb.alb"]
+}
+
+resource "aws_security_group" "alb_inbound_sg" {
+  name_prefix        = "chalk-web-inbound-sg-"
+  description = "Allow HTTP from Anywhere into ALB"
+  vpc_id      = "${aws_vpc.main.id}"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8
+    to_port     = 0
+    protocol    = "icmp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_alb" "alb" {
+  name_prefix            = "chalk-"
+  subnets         = ["${aws_subnet.public_subnet.*.id}"]
+  security_groups = ["${aws_security_group.alb_inbound_sg.id}"]
+}
+
+resource "aws_alb_listener" "alb_listener" {
+  load_balancer_arn = "${aws_alb.alb.arn}"
+  port              = "80"
+  protocol          = "HTTP"
+  depends_on        = ["aws_alb_target_group.alb_target_group"]
+
+  default_action {
+    target_group_arn = "${aws_alb_target_group.alb_target_group.arn}"
+    type             = "forward"
+  }
+}
+
+/*
+ * Permissions
  */
 resource "aws_iam_role" "ecs_execution_role" {
   name_prefix  = "chalk-ecs_task_execution_role"
