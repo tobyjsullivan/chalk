@@ -51,6 +51,12 @@ resource "aws_ecs_task_definition" "chalk_api" {
     "essential": true,
     "image": "${aws_ecr_repository.monolith_svc.repository_url}",
     "name": "monolith-svc",
+    "environment": [
+      {
+        "name": "PORT",
+        "value": "8081"
+      }
+    ],
     "networkMode": "awsvpc",
     "logConfiguration": {
       "logDriver": "awslogs",
@@ -65,6 +71,16 @@ resource "aws_ecs_task_definition" "chalk_api" {
     "essential": true,
     "image": "${aws_ecr_repository.resolver_svc.repository_url}",
     "name": "resolver-svc",
+    "environment": [
+      {
+        "name": "PORT",
+        "value": "8082"
+      },
+      {
+        "name": "VARIABLES_SVC",
+        "value": "localhost:8081"
+      }
+    ],
     "networkMode": "awsvpc",
     "logConfiguration": {
       "logDriver": "awslogs",
