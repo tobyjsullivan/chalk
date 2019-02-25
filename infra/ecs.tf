@@ -9,11 +9,6 @@ variable "public_subnets_cidr" {
   default = ["10.10.0.0/24", "10.10.1.0/24"]
 }
 
-variable "private_subnets_cidr" {
-  type = "list"
-  default = ["10.10.2.0/24", "10.10.3.0/24"]
-}
-
 variable "availability_zones" {
   type = "list"
   default = ["ap-southeast-2a","ap-southeast-2b"]
@@ -44,6 +39,7 @@ resource "aws_ecs_task_definition" "chalk_api" {
   cpu = "256"
   memory = "512"
   execution_role_arn = "${aws_iam_role.ecs_execution_role.arn}"
+  task_role_arn = "${aws_iam_role.ecs_execution_role.arn}"
 
   container_definitions = <<DEFINITION
 [
@@ -146,6 +142,7 @@ resource "aws_ecs_service" "main" {
 
   network_configuration {
     security_groups = [
+      "${aws_security_group.vpc_default.id}",
       "${aws_security_group.ecs_service.id}"]
     subnets = [
       "${aws_subnet.public_subnet.*.id}"]
@@ -233,6 +230,10 @@ resource "aws_alb_target_group" "alb_target_group" {
     create_before_destroy = true
   }
 
+  health_check {
+    path = "/health"
+  }
+
   depends_on        = ["aws_alb.alb"]
 }
 
@@ -266,7 +267,7 @@ resource "aws_security_group" "alb_inbound_sg" {
 resource "aws_alb" "alb" {
   name_prefix            = "chalk-"
   subnets         = ["${aws_subnet.public_subnet.*.id}"]
-  security_groups = ["${aws_security_group.alb_inbound_sg.id}"]
+  security_groups = ["${aws_security_group.vpc_default.id}", "${aws_security_group.alb_inbound_sg.id}"]
 }
 
 resource "aws_alb_listener" "alb_listener" {
@@ -284,6 +285,27 @@ resource "aws_alb_listener" "alb_listener" {
 /*
  * Permissions
  */
+resource "aws_security_group" "vpc_default" {
+  name_prefix = "chalk-default-sg-"
+  description = "Default security group to allow inbound/outbound from the VPC"
+  vpc_id = "${aws_vpc.main.id}"
+  depends_on = ["aws_vpc.main"]
+
+  ingress {
+    from_port = "0"
+    to_port = "0"
+    protocol = "-1"
+    self = true
+  }
+
+  egress {
+    from_port = "0"
+    to_port = "0"
+    protocol = "-1"
+    self = true
+  }
+}
+
 resource "aws_iam_role" "ecs_execution_role" {
   name_prefix  = "chalk-ecs_task_execution_role"
   assume_role_policy = <<EOF
