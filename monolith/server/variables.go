@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/satori/go.uuid"
@@ -112,6 +113,13 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 }
 
 func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID, error) {
+	log.Println("createVariable:", name, formula)
+	// Check for existing.
+	existingId := s.findVariableId(name)
+	if existingId != nil {
+		return *existingId, s.updateVariable(*existingId, formula)
+	}
+
 	id, err := uuid.NewV4()
 	if err != nil {
 		return uuid.UUID{}, err
@@ -123,12 +131,13 @@ func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID
 		name:    name,
 		formula: formula,
 	}
-	s.nameIndex[name] = id
+	s.nameIndex[normalizeVarName(name)] = id
 
 	return id, nil
 }
 
 func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
+	log.Println("renameVariable:", id, name)
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	oldState, ok := s.varMap[id]
@@ -141,12 +150,13 @@ func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 		formula: oldState.formula,
 	}
 	delete(s.nameIndex, oldState.name)
-	s.nameIndex[name] = id
+	s.nameIndex[normalizeVarName(name)] = id
 
 	return nil
 }
 
 func (s *variablesServer) updateVariable(id uuid.UUID, formula string) error {
+	log.Println("updateVariable:", id, formula)
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	oldState, ok := s.varMap[id]
@@ -163,6 +173,7 @@ func (s *variablesServer) updateVariable(id uuid.UUID, formula string) error {
 }
 
 func (s *variablesServer) getVariable(id uuid.UUID) (*state, error) {
+	log.Println("getVariable:", id)
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
@@ -178,11 +189,15 @@ func (s *variablesServer) findVariableId(name string) *uuid.UUID {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
-	id, ok := s.nameIndex[name]
+	id, ok := s.nameIndex[normalizeVarName(name)]
 	if !ok {
 		// It is reasonable that a search by name will not match. This is not an error. Return nil.
 		return nil
 	}
 
 	return &id
+}
+
+func normalizeVarName(name string) string {
+	return strings.ToLower(name)
 }

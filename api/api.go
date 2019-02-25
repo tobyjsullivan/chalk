@@ -124,6 +124,15 @@ func (h *Handler) doCreateVariable(ctx context.Context, event *Event) (*Response
 		return nil, err
 	}
 
+	if createRequest.Name == "" {
+		return &Response{
+			StatusCode:      http.StatusBadRequest,
+			Headers:         determineCorsHeaders(event),
+			Body:            []byte("must specify variable name"),
+			IsBase64Encoded: false,
+		}, nil
+	}
+
 	resp, err := h.variablesSvc.SetVariable(ctx, &monolith.SetVariableRequest{
 		Name:    createRequest.Name,
 		Formula: createRequest.Formula,

@@ -179,7 +179,7 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 
 	var match *monolith.Variable
 	for _, v := range resp.Values {
-		if v.Name == varName {
+		if strings.ToLower(v.Name) == strings.ToLower(varName) {
 			match = v
 			break
 		}
