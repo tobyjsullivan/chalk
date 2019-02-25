@@ -164,7 +164,7 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 	varName := variable.Name
 	// Check for cycles
 	for _, seen := range varHistory {
-		if seen == varName {
+		if seen == normaliseVarName(varName) {
 			return nil, fmt.Errorf("variable cycle detected: %s", varName)
 		}
 	}
@@ -179,7 +179,7 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 
 	var match *monolith.Variable
 	for _, v := range resp.Values {
-		if strings.ToLower(v.Name) == strings.ToLower(varName) {
+		if normaliseVarName(v.Name) == normaliseVarName(varName) {
 			match = v
 			break
 		}
@@ -197,7 +197,7 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 		// resolve
 		newHist := make([]string, len(varHistory)+1)
 		copy(newHist, varHistory)
-		newHist[len(varHistory)] = varName
+		newHist[len(varHistory)] = normaliseVarName(varName)
 		return e.resolve(ctx, o, newHist)
 	}
 
@@ -272,7 +272,7 @@ func (e *Engine) resolveApplication(ctx context.Context, app *types.Application,
 		if i >= len(resolvedArgs) {
 			return nil, fmt.Errorf("incomplete var set provided. missing: %v", l.FreeVariables[i:])
 		}
-		varMap[varName] = resolvedArgs[i]
+		varMap[normaliseVarName(varName)] = resolvedArgs[i]
 	}
 
 	bound, err := bindVariables(l.Expression, varMap)
@@ -291,7 +291,7 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 		return obj, nil
 	case types.TypeVariable:
 		v, _ := obj.ToVariable()
-		if value, ok := varMap[v.Name]; ok {
+		if value, ok := varMap[normaliseVarName(v.Name)]; ok {
 			return value, nil
 		}
 		return obj, nil
@@ -359,7 +359,7 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 }
 
 func findBuiltinVariable(varName string) *types.Object {
-	switch strings.ToLower(varName) {
+	switch normaliseVarName(varName) {
 	case "sum":
 		return types.NewFunction(std.Sum)
 	case "concatenate":
@@ -371,4 +371,8 @@ func findBuiltinVariable(varName string) *types.Object {
 	default:
 		return nil
 	}
+}
+
+func normaliseVarName(name string) string {
+	return strings.ToLower(name)
 }
