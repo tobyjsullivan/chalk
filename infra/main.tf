@@ -58,3 +58,11 @@ output "api_alb_dns_name" {
 output "website_endpoint" {
   value = "${aws_s3_bucket.web.website_endpoint}"
 }
+
+output "ecs_cluster_arn" {
+  value = "${aws_ecs_cluster.main.arn}"
+}
+
+output "api_service" {
+  value = "${aws_ecs_service.main.name}"
+}
