@@ -54,3 +54,7 @@ output "repo_api_url" {
 output "api_alb_dns_name" {
   value = "${aws_alb.alb.dns_name}"
 }
+
+output "website_endpoint" {
+  value = "${aws_s3_bucket.web.website_endpoint}"
+}
