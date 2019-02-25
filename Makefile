@@ -72,7 +72,7 @@ dump-test:
 format: $(GO_FILES) $(TF_FILES)
 	go fmt ./...
 	goimports -w ./
-	cd ./infra && terraform format
+	cd ./infra && terraform fmt
 
 generate: $(PROTO_FILES) $(GO_FILES)
 	go generate ./...
