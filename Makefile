@@ -1,5 +1,6 @@
 GO_FILES := $(shell find . -name '*.go')
 PROTO_FILES := $(shell find . -name '*.proto')
+TF_FILES := $(shell find . -name '*.tf')
 IN_API_LAMBDA_SRC := ./api/lambda
 IN_API_LOCAL_SRC := ./api/local
 BUILD_DIR := build
@@ -68,9 +69,10 @@ docker: $(DOCKER_IMAGES)/resolver-svc.tar.gz $(DOCKER_IMAGES)/monolith-svc.tar.g
 dump-test:
 	echo $(GO_FILES)
 
-format: $(GO_FILES)
+format: $(GO_FILES) $(TF_FILES)
 	go fmt ./...
 	goimports -w ./
+	cd ./infra && terraform fmt
 
 generate: $(PROTO_FILES) $(GO_FILES)
 	go generate ./...

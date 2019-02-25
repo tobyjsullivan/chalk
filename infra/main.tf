@@ -50,3 +50,7 @@ output "repo_resolver_svc_url" {
 output "repo_api_url" {
   value = "${aws_ecr_repository.api.repository_url}"
 }
+
+output "api_alb_dns_name" {
+  value = "${aws_alb.alb.dns_name}"
+}
