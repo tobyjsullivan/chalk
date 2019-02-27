@@ -82,19 +82,19 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	if in.Name != "" {
-		err := s.renameVariable(id, in.Name)
-		if err != nil {
-			return nil, err
+		if in.Name != "" {
+			err := s.renameVariable(id, in.Name)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	if in.Formula != "" {
-		err := s.updateVariable(id, in.Formula)
-		if err != nil {
-			return nil, err
+		if in.Formula != "" {
+			err := s.updateVariable(id, in.Formula)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -114,6 +114,11 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 
 func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID, error) {
 	log.Println("createVariable:", name, formula)
+	err := validateName(name)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
 	// Check for existing.
 	existingId := s.findVariableId(name)
 	if existingId != nil {
@@ -127,17 +132,28 @@ func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID
 
 	s.mx.Lock()
 	defer s.mx.Unlock()
+	name = normalizeVarName(name)
 	s.varMap[id] = &state{
 		name:    name,
 		formula: formula,
 	}
-	s.nameIndex[normalizeVarName(name)] = id
+	s.nameIndex[name] = id
 
 	return id, nil
 }
 
 func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 	log.Println("renameVariable:", id, name)
+	err := validateName(name)
+	if err != nil {
+		return err
+	}
+
+	existingId := s.findVariableId(name)
+	if existingId != nil {
+		return fmt.Errorf("variable `%s` already exists", name)
+	}
+
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	oldState, ok := s.varMap[id]
@@ -200,4 +216,16 @@ func (s *variablesServer) findVariableId(name string) *uuid.UUID {
 
 func normalizeVarName(name string) string {
 	return strings.ToLower(name)
+}
+
+func validateName(name string) error {
+	if strings.ContainsAny(name, " -_") {
+		return fmt.Errorf("variable name `%s` contains invalid characters", name)
+	}
+
+	if name[0] >= '0' && name[0] <= '9' {
+		return fmt.Errorf("variable name `%s` must not start with a number", name)
+	}
+
+	return nil
 }
