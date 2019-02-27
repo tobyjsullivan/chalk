@@ -68,6 +68,21 @@ func TestParse_Variable(t *testing.T) {
 	}
 }
 
+func TestParse_NegativeNumber(t *testing.T) {
+	input := "-33.392"
+
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if val := *ast.NumberVal; val != "-33.392" {
+		t.Errorf("Expected `-33.392`; got %s", val)
+	}
+}
+
 func TestParse_List(t *testing.T) {
 	input := "[1, 2]"
 

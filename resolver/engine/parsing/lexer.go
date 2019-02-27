@@ -49,7 +49,7 @@ func (l *Lexer) readNext() *Token {
 	if ch == '"' {
 		return l.readString()
 	}
-	if isDigit(ch) {
+	if ch == '-' || isDigit(ch) {
 		return l.readNumber()
 	}
 	if isPunctuation(ch) {
@@ -123,6 +123,10 @@ func (l *Lexer) readString() *Token {
 func (l *Lexer) readNumber() *Token {
 	var decimal bool
 	var str []rune
+
+	if ch := l.input.peek(); ch == '-' {
+		str = append(str, l.input.next())
+	}
 	for !l.input.eof() {
 		ch := l.input.peek()
 		if isDigit(ch) {

@@ -141,3 +141,23 @@ func TestBoolTrue(t *testing.T) {
 		t.Error("Expected TRUE; got FALSE")
 	}
 }
+
+func TestNumberNegative(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
+
+	req := "-34.9"
+
+	e := NewEngine(fakeVarSvc)
+	res, err := e.Query(context.Background(), req)
+
+	if err != nil {
+		t.Fatalf("Unexpected error response: %s", err)
+	}
+	n, err := res.ToNumber()
+	if err != nil {
+		t.Error("Unexpected error in cast:", err)
+	}
+	if n != -34.9 {
+		t.Errorf("Expected -34.9; got %f", n)
+	}
+}

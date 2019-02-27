@@ -53,6 +53,17 @@ func TestLexer_decimal(t *testing.T) {
 	}
 }
 
+func TestLexer_negativeNumber(t *testing.T) {
+	input := "-42.0"
+
+	lex := NewLexer(NewInputStream(input))
+
+	expected := "-42.0"
+	if tok := lex.Next(); tok.Type != tokenNumber || tok.Value != expected {
+		t.Error("Expected ", tokenNumber, expected, "; got", tok.Type, tok.Value)
+	}
+}
+
 func TestLexer_keywordTrue(t *testing.T) {
 	input := "True"
 	lex := NewLexer(NewInputStream(input))
