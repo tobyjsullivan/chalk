@@ -97,7 +97,7 @@ restart-service:
 	aws --region $$(cd ./infra && terraform output aws_region) \
 		ecs update-service --force-new-deployment \
 		--cluster "$$(cd ./infra && terraform output ecs_cluster_arn)" \
-		--service "$$(cd ./infra && terraform output api_service)"
+		--service "$$(cd ./infra && terraform output api_service)" > /dev/null
 
 test:
 	go test ./...
