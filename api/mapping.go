@@ -12,12 +12,13 @@ type executionResult struct {
 }
 
 type executionResultObject struct {
-	Type        *executionResultObjectType `json:"type"`
-	NumberValue *float64                   `json:"numberValue,omitempty"`
-	StringValue *string                    `json:"stringValue,omitempty"`
-	LambdaValue *executionResultLambda     `json:"lambdaValue,omitempty"`
-	ListValue   *executionResultList       `json:"listValue,omitempty"`
-	RecordValue *executionResultRecord     `json:"recordValue,omitempty"`
+	Type         *executionResultObjectType `json:"type"`
+	BooleanValue *bool                      `json:"booleanValue,omitempty"`
+	LambdaValue  *executionResultLambda     `json:"lambdaValue,omitempty"`
+	ListValue    *executionResultList       `json:"listValue,omitempty"`
+	NumberValue  *float64                   `json:"numberValue,omitempty"`
+	RecordValue  *executionResultRecord     `json:"recordValue,omitempty"`
+	StringValue  *string                    `json:"stringValue,omitempty"`
 }
 
 type executionResultObjectType struct {
@@ -52,19 +53,12 @@ func mapResolveResponse(resp *resolver.ResolveResponse) (*executionResult, error
 
 func mapResolveResponseObject(object *resolver.Object) (*executionResultObject, error) {
 	switch object.Type {
-	case resolver.ObjectType_STRING:
+	case resolver.ObjectType_BOOLEAN:
 		return &executionResultObject{
 			Type: &executionResultObjectType{
-				Class: "string",
+				Class: "boolean",
 			},
-			StringValue: &object.StringValue,
-		}, nil
-	case resolver.ObjectType_NUMBER:
-		return &executionResultObject{
-			Type: &executionResultObjectType{
-				Class: "number",
-			},
-			NumberValue: &object.NumberValue,
+			BooleanValue: &object.BoolValue,
 		}, nil
 	case resolver.ObjectType_LAMBDA:
 		freeVars := object.LambdaValue.FreeVariables
@@ -100,6 +94,13 @@ func mapResolveResponseObject(object *resolver.Object) (*executionResultObject, 
 		}
 
 		return listObj, nil
+	case resolver.ObjectType_NUMBER:
+		return &executionResultObject{
+			Type: &executionResultObjectType{
+				Class: "number",
+			},
+			NumberValue: &object.NumberValue,
+		}, nil
 	case resolver.ObjectType_RECORD:
 		recordObj := &executionResultObject{
 			Type: &executionResultObjectType{
@@ -119,6 +120,13 @@ func mapResolveResponseObject(object *resolver.Object) (*executionResultObject, 
 		}
 
 		return recordObj, nil
+	case resolver.ObjectType_STRING:
+		return &executionResultObject{
+			Type: &executionResultObjectType{
+				Class: "string",
+			},
+			StringValue: &object.StringValue,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unexpected result type: %s", object.Type)
 	}

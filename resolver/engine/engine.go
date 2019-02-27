@@ -46,41 +46,7 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 	if ast == nil {
 		return nil, nil
 	}
-	if ast.NumberVal != nil {
-		n, err := strconv.ParseFloat(*ast.NumberVal, 64)
-		if err != nil {
-			return nil, err
-		}
-		return types.NewNumber(n), nil
-	} else if ast.StringVal != nil {
-		return types.NewString(*ast.StringVal), nil
-	} else if ast.TupleVal != nil {
-		return nil, errors.New("tuple not handled")
-	} else if ast.ListVal != nil {
-		elements := ast.ListVal.Elements
-		elObjs := make([]*types.Object, len(elements))
-		var err error
-		for i, e := range elements {
-			elObjs[i], err = mapAst(e)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return types.NewList(elObjs), nil
-	} else if ast.RecordVal != nil {
-		props := make(map[string]*types.Object)
-
-		var err error
-		for _, prop := range ast.RecordVal.Properties {
-			props[prop.Name], err = mapAst(prop.Value)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return types.NewRecord(props), nil
-	} else if ast.ApplicationVal != nil {
+	if ast.ApplicationVal != nil {
 		exp, err := mapAst(ast.ApplicationVal.Expression)
 		if err != nil {
 			return nil, err
@@ -96,17 +62,26 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 		}
 
 		return types.NewApplication(exp, args), nil
-	} else if ast.VariableVal != nil {
-		return types.NewVariable(*ast.VariableVal), nil
-	} else if ast.Lambda != nil {
-		exp, err := mapAst(ast.Lambda.Expression)
+	}
+	if ast.BooleanVal != nil {
+		return types.NewBoolean(*ast.BooleanVal), nil
+	}
+	if ast.NumberVal != nil {
+		n, err := strconv.ParseFloat(*ast.NumberVal, 64)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewNumber(n), nil
+	}
+	if ast.LambdaVal != nil {
+		exp, err := mapAst(ast.LambdaVal.Expression)
 		if err != nil {
 			return nil, err
 		}
 
 		// We expect each element of the free vars tuple to be simple named variables.
-		freeVars := make([]string, len(ast.Lambda.FreeVariables.Elements))
-		for i, element := range ast.Lambda.FreeVariables.Elements {
+		freeVars := make([]string, len(ast.LambdaVal.FreeVariables.Elements))
+		for i, element := range ast.LambdaVal.FreeVariables.Elements {
 			variable, err := mapAst(element)
 			if err != nil {
 				return nil, err
@@ -120,9 +95,44 @@ func mapAst(ast *parsing.ASTNode) (*types.Object, error) {
 		}
 
 		return types.NewLambda(freeVars, exp), nil
-	} else {
-		return nil, fmt.Errorf("unknown ast node: %v", ast)
 	}
+	if ast.ListVal != nil {
+		elements := ast.ListVal.Elements
+		elObjs := make([]*types.Object, len(elements))
+		var err error
+		for i, e := range elements {
+			elObjs[i], err = mapAst(e)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return types.NewList(elObjs), nil
+	}
+	if ast.RecordVal != nil {
+		props := make(map[string]*types.Object)
+
+		var err error
+		for _, prop := range ast.RecordVal.Properties {
+			props[prop.Name], err = mapAst(prop.Value)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return types.NewRecord(props), nil
+	}
+	if ast.StringVal != nil {
+		return types.NewString(*ast.StringVal), nil
+	}
+	if ast.TupleVal != nil {
+		return nil, errors.New("tuple not handled")
+	}
+	if ast.VariableVal != nil {
+		return types.NewVariable(*ast.VariableVal), nil
+	}
+
+	return nil, fmt.Errorf("unknown ast node: %v", ast)
 }
 
 func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory []string) (*types.Object, error) {
@@ -131,16 +141,25 @@ func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory 
 	}
 
 	switch formula.Type() {
-	case types.TypeNumber:
+	case types.TypeApplication:
+		a, _ := formula.ToApplication()
+		return e.resolveApplication(ctx, a, varHistory)
+	case types.TypeBoolean:
 		return formula, nil
-	case types.TypeString:
+	case types.TypeFunction:
+		return formula, nil
+	case types.TypeLambda:
 		return formula, nil
 	case types.TypeList:
 		l, _ := formula.ToList()
 		return e.resolveList(ctx, l, varHistory)
+	case types.TypeNumber:
+		return formula, nil
 	case types.TypeRecord:
 		r, _ := formula.ToRecord()
 		return e.resolveRecord(ctx, r, varHistory)
+	case types.TypeString:
+		return formula, nil
 	case types.TypeVariable:
 		v, _ := formula.ToVariable()
 		result, err := e.resolveVariable(ctx, v, varHistory, true)
@@ -148,13 +167,6 @@ func (e *Engine) resolve(ctx context.Context, formula *types.Object, varHistory 
 			return nil, err
 		}
 		return result, nil
-	case types.TypeApplication:
-		a, _ := formula.ToApplication()
-		return e.resolveApplication(ctx, a, varHistory)
-	case types.TypeLambda:
-		return formula, nil
-	case types.TypeFunction:
-		return formula, nil
 	default:
 		return nil, fmt.Errorf("unrecognized argument type %s", formula.Type())
 	}
@@ -285,39 +297,6 @@ func (e *Engine) resolveApplication(ctx context.Context, app *types.Application,
 
 func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.Object, error) {
 	switch obj.Type() {
-	case types.TypeString:
-		return obj, nil
-	case types.TypeNumber:
-		return obj, nil
-	case types.TypeVariable:
-		v, _ := obj.ToVariable()
-		if value, ok := varMap[normaliseVarName(v.Name)]; ok {
-			return value, nil
-		}
-		return obj, nil
-	case types.TypeList:
-		l, _ := obj.ToList()
-		elements := make([]*types.Object, len(l.Elements))
-		var err error
-		for i, v := range l.Elements {
-			elements[i], err = bindVariables(v, varMap)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return types.NewList(elements), nil
-	case types.TypeRecord:
-		r, _ := obj.ToRecord()
-		props := make(map[string]*types.Object)
-		var err error
-		for k, v := range r.Properties {
-			props[k], err = bindVariables(v, varMap)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return types.NewRecord(props), nil
 	case types.TypeApplication:
 		a, _ := obj.ToApplication()
 		args := make([]*types.Object, len(a.Arguments))
@@ -335,6 +314,10 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 		}
 
 		return types.NewApplication(exp, args), nil
+	case types.TypeBoolean:
+		return obj, nil
+	case types.TypeFunction:
+		return obj, nil
 	case types.TypeLambda:
 		l, _ := obj.ToLambda()
 
@@ -351,7 +334,38 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 			return nil, err
 		}
 		return types.NewLambda(l.FreeVariables, exp), nil
-	case types.TypeFunction:
+	case types.TypeList:
+		l, _ := obj.ToList()
+		elements := make([]*types.Object, len(l.Elements))
+		var err error
+		for i, v := range l.Elements {
+			elements[i], err = bindVariables(v, varMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return types.NewList(elements), nil
+	case types.TypeNumber:
+		return obj, nil
+	case types.TypeRecord:
+		r, _ := obj.ToRecord()
+		props := make(map[string]*types.Object)
+		var err error
+		for k, v := range r.Properties {
+			props[k], err = bindVariables(v, varMap)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return types.NewRecord(props), nil
+	case types.TypeString:
+		return obj, nil
+	case types.TypeVariable:
+		v, _ := obj.ToVariable()
+		if value, ok := varMap[normaliseVarName(v.Name)]; ok {
+			return value, nil
+		}
 		return obj, nil
 	default:
 		return nil, fmt.Errorf("unexpected object type: %v", obj.Type())

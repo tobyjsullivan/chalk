@@ -16,21 +16,23 @@ message ResolveResponse {
 }
 
 enum ObjectType {
-    STRING = 0;
-    NUMBER = 1;
+    BOOLEAN = 0;
+    LAMBDA = 1;
     LIST = 2;
-    RECORD = 3;
-    LAMBDA = 4;
+    NUMBER = 3;
+    STRING = 4;
+    RECORD = 5;
 }
 
 message Object {
     ObjectType type = 1;
-    string string_value = 2;
-    double number_value = 3;
-    List list_value = 4;
-    Record record_value = 5;
-    Tuple tuple_value = 6;
-    Lambda lambda_value = 7;
+    bool bool_value = 2;
+    string string_value = 3;
+    double number_value = 4;
+    List list_value = 5;
+    Record record_value = 6;
+    Tuple tuple_value = 7;
+    Lambda lambda_value = 8;
 }
 
 message List {

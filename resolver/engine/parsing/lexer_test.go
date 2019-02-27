@@ -53,12 +53,30 @@ func TestLexer_decimal(t *testing.T) {
 	}
 }
 
+func TestLexer_keywordTrue(t *testing.T) {
+	input := "True"
+	lex := NewLexer(NewInputStream(input))
+
+	if tok := lex.Next(); tok.Type != tokenKeyword || tok.Value != "True" {
+		t.Errorf("Expected %d `True`; got: %d `%s`", tokenKeyword, tok.Type, tok.Value)
+	}
+}
+
+func TestLexer_keywordFalse(t *testing.T) {
+	input := "FALSE"
+	lex := NewLexer(NewInputStream(input))
+
+	if tok := lex.Next(); tok.Type != tokenKeyword || tok.Value != "FALSE" {
+		t.Errorf("Expected %d `FALSE`; got: %d `%s`", tokenKeyword, tok.Type, tok.Value)
+	}
+}
+
 func TestCurrying(t *testing.T) {
-	input := "var1()(b)"
+	input := "Var1()(b)"
 
 	lex := NewLexer(NewInputStream(input))
 
-	expected := "var1"
+	expected := "Var1"
 	if tok := lex.Next(); tok.Type != tokenIdentifier || tok.Value != expected {
 		t.Error("Expected ", tokenIdentifier, expected, "; got", tok.Type, tok.Value)
 	}

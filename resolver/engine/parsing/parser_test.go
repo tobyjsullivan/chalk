@@ -136,16 +136,52 @@ func TestParser_Lambda(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 
-	if ast.Lambda == nil {
+	if ast.LambdaVal == nil {
 		t.Fatalf("Expected lambda; got: %v", ast)
 	}
 
-	if n := len(ast.Lambda.FreeVariables.Elements); n != 1 {
+	if n := len(ast.LambdaVal.FreeVariables.Elements); n != 1 {
 		t.Errorf("Expected one argument; got %d", n)
 	}
 
-	if ast.Lambda.Expression.VariableVal == nil {
-		t.Errorf("Expected variable; got %+v", ast.Lambda.Expression)
+	if ast.LambdaVal.Expression.VariableVal == nil {
+		t.Errorf("Expected variable; got %+v", ast.LambdaVal.Expression)
+	}
+}
+
+func TestParser_BoolTrue(t *testing.T) {
+	input := "true"
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if ast.BooleanVal == nil {
+		t.Fatalf("Expected boolean; got: %v", ast)
+	}
+
+	if b := *ast.BooleanVal; !b {
+		t.Errorf("Expected `true`; got %v", b)
+	}
+}
+
+func TestParser_BoolFalse(t *testing.T) {
+	input := "False"
+	p := NewParser(NewLexer(NewInputStream(input)))
+	ast, err := p.Parse()
+
+	if err != nil {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if ast.BooleanVal == nil {
+		t.Fatalf("Expected boolean; got: %v", ast)
+	}
+
+	if b := *ast.BooleanVal; b {
+		t.Errorf("Expected `false`; got %v", b)
 	}
 }
 

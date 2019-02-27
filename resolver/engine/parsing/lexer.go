@@ -11,9 +11,12 @@ const (
 	tokenNumber
 	tokenString
 	//tokenOperator
+	tokenKeyword
 	tokenIdentifier
 	tokenInvalid
 )
+
+const keywords = " true false "
 
 var reIdentStart = regexp.MustCompile("^[a-zA-Z_]")
 
@@ -67,7 +70,7 @@ func (l *Lexer) readNext() *Token {
 		}
 	}
 	if isIdentStart(ch) {
-		return l.readIdentifier()
+		return l.readIdentifierOrKeyword()
 	}
 
 	return &Token{
@@ -138,7 +141,7 @@ func (l *Lexer) readNumber() *Token {
 	}
 }
 
-func (l *Lexer) readIdentifier() *Token {
+func (l *Lexer) readIdentifierOrKeyword() *Token {
 	var str []rune
 	for !l.input.eof() {
 		ch := l.input.peek()
@@ -149,10 +152,22 @@ func (l *Lexer) readIdentifier() *Token {
 		}
 	}
 
-	return &Token{
+	value := string(str)
+	tok := &Token{
 		Type:  tokenIdentifier,
-		Value: string(str),
+		Value: value,
 	}
+
+	if isKeyword(value) {
+		tok.Type = tokenKeyword
+	}
+
+	return tok
+}
+
+func isKeyword(identifier string) bool {
+	normal := strings.ToLower(identifier)
+	return strings.Contains(keywords, " "+normal+" ")
 }
 
 func (l *Lexer) Next() *Token {

@@ -52,6 +52,12 @@ func toResultObject(obj *types.Object) (*resolver.Object, error) {
 		return nil, nil
 	}
 	switch obj.Type() {
+	case types.TypeBoolean:
+		b, _ := obj.ToBoolean()
+		return &resolver.Object{
+			Type:      resolver.ObjectType_BOOLEAN,
+			BoolValue: b,
+		}, nil
 	case types.TypeNumber:
 		n, _ := obj.ToNumber()
 		return &resolver.Object{

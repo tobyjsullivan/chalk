@@ -3,6 +3,7 @@ package parsing
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Reference: http://lisperator.net/pltut/parser/token-stream
@@ -115,7 +116,7 @@ func (p *Parser) parseImmediateEntity() (*ASTNode, error) {
 				}
 
 				return &ASTNode{
-					Lambda: &Lambda{
+					LambdaVal: &Lambda{
 						FreeVariables: t,
 						Expression:    exp,
 					},
@@ -128,6 +129,22 @@ func (p *Parser) parseImmediateEntity() (*ASTNode, error) {
 			}, nil
 		default:
 			return nil, fmt.Errorf("expected Number, String, Identifier, `{`, or `[`; got: %+v", tok)
+		}
+	case tokenKeyword:
+		p.l.Next()
+		switch strings.ToLower(tok.Value) {
+		case "true":
+			b := true
+			return &ASTNode{
+				BooleanVal: &b,
+			}, nil
+		case "false":
+			b := false
+			return &ASTNode{
+				BooleanVal: &b,
+			}, nil
+		default:
+			return nil, fmt.Errorf("unexpected keyword: `%s`", tok.Value)
 		}
 	case tokenIdentifier:
 		p.l.Next()
@@ -290,13 +307,14 @@ func (p *Parser) parseTuple() (*Tuple, error) {
 
 type ASTNode struct {
 	ApplicationVal *Application
+	BooleanVal     *bool
+	LambdaVal      *Lambda
 	ListVal        *List
 	NumberVal      *string
 	RecordVal      *Record
 	StringVal      *string
 	TupleVal       *Tuple
 	VariableVal    *string
-	Lambda         *Lambda
 }
 
 func (n *ASTNode) String() string {
@@ -325,11 +343,11 @@ func (n *ASTNode) String() string {
 	if n.VariableVal != nil {
 		return fmt.Sprintf("Variable{%v}", n.VariableVal)
 	}
-	if n.Lambda != nil {
+	if n.LambdaVal != nil {
 		return fmt.Sprintf(
 			"Lambda{FreeVariables:%v, Expression: %v}",
-			n.Lambda.FreeVariables,
-			n.Lambda.Expression,
+			n.LambdaVal.FreeVariables,
+			n.LambdaVal.Expression,
 		)
 	}
 

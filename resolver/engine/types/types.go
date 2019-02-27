@@ -7,6 +7,7 @@ import (
 
 const (
 	TypeApplication TypeName = "application"
+	TypeBoolean              = "boolean"
 	TypeFunction             = "function" // A function differs from a lambda in that it executes code to resolve.
 	TypeList                 = "list"
 	TypeNumber               = "number"
@@ -43,6 +44,7 @@ type Variable struct {
 type Object struct {
 	objectType       TypeName
 	applicationValue *Application
+	booleanValue     bool
 	functionValue    Function
 	listValue        *List
 	numberValue      float64
@@ -63,6 +65,13 @@ func NewNumber(n float64) *Object {
 	return &Object{
 		objectType:  TypeNumber,
 		numberValue: n,
+	}
+}
+
+func NewBoolean(b bool) *Object {
+	return &Object{
+		objectType:   TypeBoolean,
+		booleanValue: b,
 	}
 }
 
@@ -146,6 +155,14 @@ func (o *Object) ToApplication() (*Application, error) {
 	}
 
 	return o.applicationValue, nil
+}
+
+func (o *Object) ToBoolean() (bool, error) {
+	if o.objectType != TypeBoolean {
+		return false, errors.New("value is not an application")
+	}
+
+	return o.booleanValue, nil
 }
 
 func (o *Object) ToFunction() (Function, error) {

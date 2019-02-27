@@ -120,5 +120,24 @@ func TestLambda(t *testing.T) {
 	if varB := l.FreeVariables[1]; varB != "b" {
 		t.Errorf("Unexpected free variable: %s", varB)
 	}
+}
 
+func TestBoolTrue(t *testing.T) {
+	fakeVarSvc := &fakeVarSvc{}
+
+	req := "TRUE"
+
+	e := NewEngine(fakeVarSvc)
+	res, err := e.Query(context.Background(), req)
+
+	if err != nil {
+		t.Fatalf("Unexpected error response: %s", err)
+	}
+	b, err := res.ToBoolean()
+	if err != nil {
+		t.Error("Unexpected error in cast:", err)
+	}
+	if !b {
+		t.Error("Expected TRUE; got FALSE")
+	}
 }
