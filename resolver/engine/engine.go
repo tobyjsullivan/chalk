@@ -374,14 +374,16 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 
 func findBuiltinVariable(varName string) *types.Object {
 	switch normaliseVarName(varName) {
-	case "sum":
-		return types.NewFunction(std.Sum)
 	case "concatenate":
 		return types.NewFunction(std.Concatenate)
-	case "love":
-		return types.NewFunction(std.Love)
+	case "if":
+		return types.NewFunction(std.If)
 	case "list":
 		return types.NewFunction(std.List)
+	case "love":
+		return types.NewFunction(std.Love)
+	case "sum":
+		return types.NewFunction(std.Sum)
 	default:
 		return nil
 	}
