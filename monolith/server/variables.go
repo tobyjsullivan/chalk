@@ -151,6 +151,10 @@ func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 
 	existingId := s.findVariableId(name)
 	if existingId != nil {
+		if *existingId == id {
+			// no-op
+			return nil
+		}
 		return fmt.Errorf("variable `%s` already exists", name)
 	}
 
