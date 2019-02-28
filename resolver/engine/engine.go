@@ -382,6 +382,8 @@ func findBuiltinVariable(varName string) *types.Object {
 		return types.NewFunction(std.List)
 	case "love":
 		return types.NewFunction(std.Love)
+	case "not":
+		return types.NewFunction(std.Not)
 	case "sum":
 		return types.NewFunction(std.Sum)
 	default:
