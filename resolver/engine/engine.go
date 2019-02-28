@@ -376,6 +376,8 @@ func findBuiltinVariable(varName string) *types.Object {
 	switch normaliseVarName(varName) {
 	case "concatenate":
 		return types.NewFunction(std.Concatenate)
+	case "equal":
+		return types.NewFunction(std.Equal)
 	case "if":
 		return types.NewFunction(std.If)
 	case "list":
