@@ -375,19 +375,65 @@ func bindVariables(obj *types.Object, varMap map[string]*types.Object) (*types.O
 func findBuiltinVariable(varName string) *types.Object {
 	switch normaliseVarName(varName) {
 	case "concatenate":
-		return types.NewFunction(std.Concatenate)
+		return types.NewLambda(
+			[]string{
+				"a",
+				"b",
+			},
+			types.NewApplication(types.NewFunction(std.Concatenate), []*types.Object{
+				types.NewVariable("a"),
+				types.NewVariable("b"),
+			}))
 	case "equal":
-		return types.NewFunction(std.Equal)
+		return types.NewLambda(
+			[]string{
+				"left",
+				"right",
+			},
+			types.NewApplication(types.NewFunction(std.Equal), []*types.Object{
+				types.NewVariable("left"),
+				types.NewVariable("right"),
+			}))
 	case "if":
-		return types.NewFunction(std.If)
+		return types.NewLambda(
+			[]string{
+				"condition",
+				"true",
+				"false",
+			},
+			types.NewApplication(types.NewFunction(std.If), []*types.Object{
+				types.NewVariable("condition"),
+				types.NewVariable("then"),
+				types.NewVariable("else"),
+			}))
 	case "list":
 		return types.NewFunction(std.List)
 	case "love":
-		return types.NewFunction(std.Love)
+		return types.NewLambda(
+			[]string{
+				"name",
+			},
+			types.NewApplication(types.NewFunction(std.Love), []*types.Object{
+				types.NewVariable("name"),
+			}))
 	case "not":
-		return types.NewFunction(std.Not)
+		return types.NewLambda(
+			[]string{
+				"b",
+			},
+			types.NewApplication(types.NewFunction(std.Not), []*types.Object{
+				types.NewVariable("b"),
+			}))
 	case "sum":
-		return types.NewFunction(std.Sum)
+		return types.NewLambda(
+			[]string{
+				"a",
+				"b",
+			},
+			types.NewApplication(types.NewFunction(std.Sum), []*types.Object{
+				types.NewVariable("a"),
+				types.NewVariable("b"),
+			}))
 	default:
 		return nil
 	}
