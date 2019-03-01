@@ -31,6 +31,7 @@ type List struct {
 type Lambda struct {
 	FreeVariables []string
 	Expression    *Object
+	NativeResolver Function
 }
 
 type Record struct {
@@ -85,10 +86,13 @@ func NewApplication(expression *Object, args []*Object) *Object {
 	}
 }
 
-func NewFunction(f Function) *Object {
+func NewFunction(freeVariables []string, f Function) *Object {
 	return &Object{
-		objectType:    TypeFunction,
-		functionValue: f,
+		objectType: TypeLambda,
+		lambdaValue: &Lambda{
+			FreeVariables: freeVariables,
+			NativeResolver: f,
+		},
 	}
 }
 
