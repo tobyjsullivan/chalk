@@ -21,10 +21,11 @@ var (
 	reVariablesCollection = regexp.MustCompile("^/variables$")
 	reVariablesDocument   = regexp.MustCompile("^/variables/([a-fA-F0-9-]+)$")
 
-	rePathCreateSession = reSessionsCollection
-	rePathGetSession    = reSessionsDocument
-	rePathCreateVar     = reVariablesCollection
-	rePathUpdateVar     = reVariablesDocument
+	rePathCreateSession    = reSessionsCollection
+	rePathGetSession       = reSessionsDocument
+	rePathGetPageVariables = regexp.MustCompile("^/pages/([a-fA-F0-9-]+)/variables$")
+	rePathCreateVar        = reVariablesCollection
+	rePathUpdateVar        = reVariablesDocument
 )
 
 type Event struct {
@@ -94,6 +95,8 @@ func (h *Handler) doGet(ctx context.Context, req *Event) (*Response, error) {
 		return h.doGetHealth(ctx, req)
 	} else if rePathGetSession.MatchString(req.Path) {
 		return h.doGetSession(ctx, req)
+	} else if rePathGetPageVariables.MatchString(req.Path) {
+		return h.doGetPageVariables(ctx, req)
 	}
 
 	return &Response{
@@ -343,6 +346,47 @@ func (h *Handler) doGetSession(ctx context.Context, event *Event) (*Response, er
 		out.Session = &sessionState{
 			Id:    resp.Session.SessionId,
 			Pages: pages,
+		}
+	}
+
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(event),
+		Body:            b,
+		IsBase64Encoded: false,
+	}, nil
+}
+
+func (h *Handler) doGetPageVariables(ctx context.Context, event *Event) (*Response, error) {
+	matches := rePathGetPageVariables.FindStringSubmatch(event.Path)
+	if len(matches) != 2 {
+		// Panic because the router should have verified this previously.
+		panic("Expected ID in path.")
+	}
+
+	// Page ID
+	pageId := matches[1]
+	varsReq := &monolith.FindVariablesRequest{
+		PageId: pageId,
+	}
+	resp, err := h.variablesSvc.FindVariables(ctx, varsReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var out getPageVariablesResponse
+	out.Variables = make([]*variableState, len(resp.Values))
+	log.Println("found", len(resp.Values), "variables")
+	for i, v := range resp.Values {
+		log.Println("adding var to resp", v.VariableId)
+		out.Variables[i], err = h.buildVariableState(ctx, v)
+		if err != nil {
+			return nil, err
 		}
 	}
 

@@ -36,6 +36,10 @@ type updateVariableResponse struct {
 	State *variableState `json:"state,omitempty"`
 }
 
+type getPageVariablesResponse struct {
+	Variables []*variableState
+}
+
 type sessionState struct {
 	Id    string   `json:"id"`
 	Pages []string `json:"pages"`

@@ -49,6 +49,7 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 
 		out[i] = &monolith.Variable{
 			VariableId: id.String(),
+			Page:       state.page.String(),
 			Name:       state.name,
 			Formula:    state.formula,
 		}
@@ -76,10 +77,12 @@ func (s *variablesServer) FindVariables(ctx context.Context, in *monolith.FindVa
 		}
 	} else {
 		varStates := s.findPageVariables(pageId)
-		out := make([]*monolith.Variable, len(varStates))
+		log.Println("found", len(varStates), "variables")
+		out = make([]*monolith.Variable, len(varStates))
 		for i, s := range varStates {
 			out[i] = &monolith.Variable{
 				VariableId: s.id.String(),
+				Page:       pageId.String(),
 				Name:       s.name,
 				Formula:    s.formula,
 			}
@@ -166,7 +169,7 @@ func (s *variablesServer) createVariable(page uuid.UUID, name string, formula st
 		return varState.id, s.updateVariable(varState.id, formula)
 	}
 
-	id, err := uuid.NewV4()
+	variableId, err := uuid.NewV4()
 	if err != nil {
 		return uuid.UUID{}, err
 	}
@@ -174,29 +177,30 @@ func (s *variablesServer) createVariable(page uuid.UUID, name string, formula st
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	name = normalizeVarName(name)
-	s.varMap[id] = &varState{
+	s.varMap[variableId] = &varState{
+		id:      variableId,
 		page:    page,
 		name:    name,
 		formula: formula,
 	}
-	s.pageIndex[page] = append(s.pageIndex[page], id)
+	s.pageIndex[page] = append(s.pageIndex[page], variableId)
 
-	return id, nil
+	return variableId, nil
 }
 
-func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
-	log.Println("renameVariable:", id, name)
+func (s *variablesServer) renameVariable(variableId uuid.UUID, name string) error {
+	log.Println("renameVariable:", variableId, name)
 	err := validateName(name)
 	if err != nil {
 		return err
 	}
 
 	s.mx.RLock()
-	state := s.varMap[id]
+	state := s.varMap[variableId]
 	s.mx.RUnlock()
 
 	if varState := s.findVariableByName(state.page, name); varState != nil {
-		if varState.id == id {
+		if varState.id == variableId {
 			// no-op
 			return nil
 		}
@@ -205,12 +209,14 @@ func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 
 	s.mx.Lock()
 	defer s.mx.Unlock()
-	oldState, ok := s.varMap[id]
+	oldState, ok := s.varMap[variableId]
 	if !ok {
-		return fmt.Errorf("variable not found: %s", id)
+		return fmt.Errorf("variable not found: %s", variableId)
 	}
 
-	s.varMap[id] = &varState{
+	s.varMap[variableId] = &varState{
+		id:      variableId,
+		page:    oldState.page,
 		name:    name,
 		formula: oldState.formula,
 	}
@@ -218,16 +224,18 @@ func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 	return nil
 }
 
-func (s *variablesServer) updateVariable(id uuid.UUID, formula string) error {
-	log.Println("updateVariable:", id, formula)
+func (s *variablesServer) updateVariable(variableId uuid.UUID, formula string) error {
+	log.Println("updateVariable:", variableId, formula)
 	s.mx.Lock()
 	defer s.mx.Unlock()
-	oldState, ok := s.varMap[id]
+	oldState, ok := s.varMap[variableId]
 	if !ok {
-		return fmt.Errorf("variable not found: %s", id)
+		return fmt.Errorf("variable not found: %s", variableId)
 	}
 
-	s.varMap[id] = &varState{
+	s.varMap[variableId] = &varState{
+		id:      variableId,
+		page:    oldState.page,
 		name:    oldState.name,
 		formula: formula,
 	}
@@ -258,6 +266,7 @@ func (s *variablesServer) findVarsByName(pageId uuid.UUID, names []string) ([]*m
 
 		out = append(out, &monolith.Variable{
 			VariableId: varState.id.String(),
+			Page:       varState.page.String(),
 			Name:       varState.name,
 			Formula:    varState.formula,
 		})
