@@ -7,10 +7,11 @@ import "domain.proto";
 service Pages {
     rpc CreatePage (CreatePageRequest) returns (CreatePageResponse) {}
     rpc GetPages (GetPagesRequest) returns (GetPagesResponse) {}
+    rpc FindPages (FindPagesRequest) returns (FindPagesResponse) {}
 }
 
 message CreatePageRequest {
-
+    string session = 1;
 }
 
 message CreatePageResponse {
@@ -23,6 +24,15 @@ message GetPagesRequest {
 }
 
 message GetPagesResponse {
+    Error error = 1;
+    repeated Page pages = 2;
+}
+
+message FindPagesRequest {
+    string session = 1;
+}
+
+message FindPagesResponse {
     Error error = 1;
     repeated Page pages = 2;
 }

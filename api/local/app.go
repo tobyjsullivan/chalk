@@ -56,28 +56,31 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	port := "8080"
 
-	resolverSvc := os.Getenv("RESOLVER_SVC")
-	varsSvc := os.Getenv("VARIABLES_SVC")
+	resolverSvcHost := os.Getenv("RESOLVER_SVC")
+	monolithSvcHost := os.Getenv("VARIABLES_SVC")
 
-	resolverConn, err := grpc.Dial(resolverSvc, grpc.WithInsecure())
+	resolverConn, err := grpc.Dial(resolverSvcHost, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial resolver service: %v", err)
 	}
 	defer resolverConn.Close()
 
-	varsConn, err := grpc.Dial(varsSvc, grpc.WithInsecure())
+	monolithConn, err := grpc.Dial(monolithSvcHost, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial variables service: %v", err)
 	}
-	defer varsConn.Close()
+	defer monolithConn.Close()
+
+	pagesSvc := monolith.NewPagesClient(monolithConn)
+	resolverSvc := resolver.NewResolverClient(resolverConn)
+	sessionsSvc := monolith.NewSessionsClient(monolithConn)
+	variablesSvc := monolith.NewVariablesClient(monolithConn)
+	executionHandler := api.NewHandler(pagesSvc, resolverSvc, sessionsSvc, variablesSvc)
 
 	s := &http.Server{
 		Addr: ":" + port,
 		Handler: &handler{
-			executionHandler: api.NewHandler(
-				resolver.NewResolverClient(resolverConn),
-				monolith.NewVariablesClient(varsConn),
-			),
+			executionHandler: executionHandler,
 		},
 		ReadTimeout:    2 * time.Second,
 		WriteTimeout:   2 * time.Second,

@@ -24,11 +24,25 @@ func NewEngine(varSvc monolith.VariablesClient) *Engine {
 	}
 }
 
-func (e *Engine) Query(ctx context.Context, formula string) (*types.Object, error) {
+type contextKey string
+
+const contextKeyPageId = contextKey("pageId")
+
+type queryContext struct {
+	pageId string
+}
+
+func (e *Engine) Query(ctx context.Context, pageId string, formula string) (*types.Object, error) {
+	if pageId == "" {
+		return nil, errors.New("pageId must be provided")
+	}
+
 	function, err := parseFormula(formula)
 	if err != nil {
 		return nil, err
 	}
+
+	ctx = setContextPageId(ctx, pageId)
 
 	return e.resolve(ctx, function, []string{})
 }
@@ -182,8 +196,13 @@ func (e *Engine) resolveVariable(ctx context.Context, variable *types.Variable, 
 	}
 
 	// Lookup formula
-	resp, err := e.varSvc.GetVariables(ctx, &monolith.GetVariablesRequest{
-		Names: []string{varName},
+	pageId, ok := getContextPageId(ctx)
+	if !ok {
+		return nil, errors.New("could not find pageId in context")
+	}
+	resp, err := e.varSvc.FindVariables(ctx, &monolith.FindVariablesRequest{
+		PageId: pageId,
+		Names:  []string{varName},
 	})
 	if err != nil {
 		return nil, err
@@ -395,4 +414,13 @@ func findBuiltinVariable(varName string) *types.Object {
 
 func normaliseVarName(name string) string {
 	return strings.ToLower(name)
+}
+
+func setContextPageId(ctx context.Context, pageId string) context.Context {
+	return context.WithValue(ctx, contextKeyPageId, pageId)
+}
+
+func getContextPageId(ctx context.Context) (string, bool) {
+	pageId, ok := ctx.Value(contextKeyPageId).(string)
+	return pageId, ok
 }

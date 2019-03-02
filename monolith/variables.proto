@@ -6,20 +6,43 @@ import "domain.proto";
 
 service Variables {
     rpc GetVariables (GetVariablesRequest) returns (GetVariablesResponse) {}
-    rpc SetVariable (SetVariableRequest) returns (SetVariableResponse) {}
+    rpc FindVariables (FindVariablesRequest) returns (FindVariablesResponse) {}
+    rpc CreateVariable (CreateVariableRequest) returns (CreateVariableResponse) {}
+    rpc UpdateVariable (UpdateVariableRequest) returns (UpdateVariableResponse) {}
 }
 
 message GetVariablesRequest {
     repeated string ids = 1;
-    repeated string names = 2;
 }
 
 message GetVariablesResponse {
     repeated Variable values = 1;
 }
 
-message SetVariableRequest {
-    // If included, updates the existing variable. Otherwise, creates a new variable.
+message FindVariablesRequest {
+    string page_id = 1;
+    // If `names` is empty, all page variables will be returned.
+    repeated string names = 2;
+}
+
+message FindVariablesResponse {
+    repeated Variable values = 1;
+}
+
+message CreateVariableRequest {
+    string page_id = 1;
+    // If included, renames the variable.
+    string name = 3;
+    // If included, updates the variable value.
+    string formula = 4;
+}
+
+message CreateVariableResponse {
+    Error error = 1;
+    Variable variable = 2;
+}
+
+message UpdateVariableRequest {
     string id = 1;
     // If included, renames the variable.
     string name = 2;
@@ -27,7 +50,7 @@ message SetVariableRequest {
     string formula = 3;
 }
 
-message SetVariableResponse {
+message UpdateVariableResponse {
     Error error = 1;
     Variable variable = 2;
 }

@@ -15,41 +15,33 @@ import (
 // variablesServer is used to implement VariablesServer.
 type variablesServer struct {
 	mx        sync.RWMutex
-	varMap    map[uuid.UUID]*state
-	nameIndex map[string]uuid.UUID
+	varMap    map[uuid.UUID]*varState
+	pageIndex map[uuid.UUID][]uuid.UUID
 }
 
 func newVariablesServer() *variablesServer {
 	return &variablesServer{
-		varMap:    make(map[uuid.UUID]*state),
-		nameIndex: make(map[string]uuid.UUID),
+		varMap:    make(map[uuid.UUID]*varState),
+		pageIndex: make(map[uuid.UUID][]uuid.UUID),
 	}
 }
 
-type state struct {
+type varState struct {
+	id      uuid.UUID
+	page    uuid.UUID
 	name    string
 	formula string
 }
 
 func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest) (*monolith.GetVariablesResponse, error) {
-	ids := make([]uuid.UUID, len(in.Ids))
-	var err error
-	for i, id := range in.Ids {
-		ids[i], err = uuid.FromString(id)
+	log.Println("GetVariables")
+	out := make([]*monolith.Variable, len(in.Ids))
+	for i, vid := range in.Ids {
+		id, err := uuid.FromString(vid)
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	for _, name := range in.Names {
-		id := s.findVariableId(name)
-		if id != nil {
-			ids = append(ids, *id)
-		}
-	}
-
-	out := make([]*monolith.Variable, len(ids))
-	for i, id := range ids {
 		state, err := s.getVariable(id)
 		if err != nil {
 			return nil, err
@@ -69,32 +61,81 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 	}, nil
 }
 
-func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVariableRequest) (*monolith.SetVariableResponse, error) {
-	var id uuid.UUID
-	var err error
-	if in.Id == "" {
-		id, err = s.createVariable(in.Name, in.Formula)
+func (s *variablesServer) FindVariables(ctx context.Context, in *monolith.FindVariablesRequest) (*monolith.FindVariablesResponse, error) {
+	log.Println("FindVariables")
+	pageId, err := uuid.FromString(in.PageId)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*monolith.Variable
+	if len(in.Names) > 0 {
+		out, err = s.findVarsByName(pageId, in.Names)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		id, err = uuid.FromString(in.Id)
+		varStates := s.findPageVariables(pageId)
+		out := make([]*monolith.Variable, len(varStates))
+		for i, s := range varStates {
+			out[i] = &monolith.Variable{
+				VariableId: s.id.String(),
+				Name:       s.name,
+				Formula:    s.formula,
+			}
+		}
+	}
+
+	return &monolith.FindVariablesResponse{
+		Values: out,
+	}, nil
+}
+
+func (s *variablesServer) CreateVariable(ctx context.Context, in *monolith.CreateVariableRequest) (*monolith.CreateVariableResponse, error) {
+	log.Println("CreateVariable")
+	pageId, err := uuid.FromString(in.PageId)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := s.createVariable(pageId, in.Name, in.Formula)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := s.getVariable(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &monolith.CreateVariableResponse{
+		Variable: &monolith.Variable{
+			VariableId: id.String(),
+			Page:       pageId.String(),
+			Name:       state.name,
+			Formula:    state.formula,
+		},
+	}, nil
+}
+
+func (s *variablesServer) UpdateVariable(ctx context.Context, in *monolith.UpdateVariableRequest) (*monolith.UpdateVariableResponse, error) {
+	log.Println("UpdateVariable")
+	id, err := uuid.FromString(in.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if in.Name != "" {
+		err := s.renameVariable(id, in.Name)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		if in.Name != "" {
-			err := s.renameVariable(id, in.Name)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if in.Formula != "" {
-			err := s.updateVariable(id, in.Formula)
-			if err != nil {
-				return nil, err
-			}
+	if in.Formula != "" {
+		err := s.updateVariable(id, in.Formula)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -103,16 +144,17 @@ func (s *variablesServer) SetVariable(ctx context.Context, in *monolith.SetVaria
 		return nil, err
 	}
 
-	return &monolith.SetVariableResponse{
+	return &monolith.UpdateVariableResponse{
 		Variable: &monolith.Variable{
 			VariableId: id.String(),
+			Page:       state.page.String(),
 			Name:       state.name,
 			Formula:    state.formula,
 		},
 	}, nil
 }
 
-func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID, error) {
+func (s *variablesServer) createVariable(page uuid.UUID, name string, formula string) (uuid.UUID, error) {
 	log.Println("createVariable:", name, formula)
 	err := validateName(name)
 	if err != nil {
@@ -120,9 +162,8 @@ func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID
 	}
 
 	// Check for existing.
-	existingId := s.findVariableId(name)
-	if existingId != nil {
-		return *existingId, s.updateVariable(*existingId, formula)
+	if varState := s.findVariableByName(page, name); varState != nil {
+		return varState.id, s.updateVariable(varState.id, formula)
 	}
 
 	id, err := uuid.NewV4()
@@ -133,11 +174,12 @@ func (s *variablesServer) createVariable(name string, formula string) (uuid.UUID
 	s.mx.Lock()
 	defer s.mx.Unlock()
 	name = normalizeVarName(name)
-	s.varMap[id] = &state{
+	s.varMap[id] = &varState{
+		page:    page,
 		name:    name,
 		formula: formula,
 	}
-	s.nameIndex[name] = id
+	s.pageIndex[page] = append(s.pageIndex[page], id)
 
 	return id, nil
 }
@@ -149,9 +191,12 @@ func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 		return err
 	}
 
-	existingId := s.findVariableId(name)
-	if existingId != nil {
-		if *existingId == id {
+	s.mx.RLock()
+	state := s.varMap[id]
+	s.mx.RUnlock()
+
+	if varState := s.findVariableByName(state.page, name); varState != nil {
+		if varState.id == id {
 			// no-op
 			return nil
 		}
@@ -165,12 +210,10 @@ func (s *variablesServer) renameVariable(id uuid.UUID, name string) error {
 		return fmt.Errorf("variable not found: %s", id)
 	}
 
-	s.varMap[id] = &state{
+	s.varMap[id] = &varState{
 		name:    name,
 		formula: oldState.formula,
 	}
-	delete(s.nameIndex, oldState.name)
-	s.nameIndex[normalizeVarName(name)] = id
 
 	return nil
 }
@@ -184,7 +227,7 @@ func (s *variablesServer) updateVariable(id uuid.UUID, formula string) error {
 		return fmt.Errorf("variable not found: %s", id)
 	}
 
-	s.varMap[id] = &state{
+	s.varMap[id] = &varState{
 		name:    oldState.name,
 		formula: formula,
 	}
@@ -192,7 +235,7 @@ func (s *variablesServer) updateVariable(id uuid.UUID, formula string) error {
 	return nil
 }
 
-func (s *variablesServer) getVariable(id uuid.UUID) (*state, error) {
+func (s *variablesServer) getVariable(id uuid.UUID) (*varState, error) {
 	log.Println("getVariable:", id)
 	s.mx.RLock()
 	defer s.mx.RUnlock()
@@ -205,17 +248,57 @@ func (s *variablesServer) getVariable(id uuid.UUID) (*state, error) {
 	return state, nil
 }
 
-func (s *variablesServer) findVariableId(name string) *uuid.UUID {
+func (s *variablesServer) findVarsByName(pageId uuid.UUID, names []string) ([]*monolith.Variable, error) {
+	out := make([]*monolith.Variable, 0, len(names))
+	for _, name := range names {
+		varState := s.findVariableByName(pageId, name)
+		if varState == nil {
+			continue
+		}
+
+		out = append(out, &monolith.Variable{
+			VariableId: varState.id.String(),
+			Name:       varState.name,
+			Formula:    varState.formula,
+		})
+
+		log.Println("Sending var", varState.name, ":", varState.formula)
+	}
+
+	return out, nil
+}
+
+func (s *variablesServer) findPageVariables(page uuid.UUID) []*varState {
+	log.Println("findPageVariables:", page)
+
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
-	id, ok := s.nameIndex[normalizeVarName(name)]
+	pageVars, ok := s.pageIndex[page]
 	if !ok {
-		// It is reasonable that a search by name will not match. This is not an error. Return nil.
-		return nil
+		return []*varState{}
 	}
 
-	return &id
+	out := make([]*varState, len(pageVars))
+	for i, v := range pageVars {
+		out[i] = s.varMap[v]
+	}
+
+	return out
+}
+
+func (s *variablesServer) findVariableByName(page uuid.UUID, name string) *varState {
+	log.Println("findVariableId:", page, name)
+
+	pageVarStates := s.findPageVariables(page)
+
+	for _, state := range pageVarStates {
+		if state.name == name {
+			return state
+		}
+	}
+
+	return nil
 }
 
 func normalizeVarName(name string) string {
