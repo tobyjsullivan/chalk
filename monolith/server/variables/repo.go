@@ -2,22 +2,23 @@ package variables
 
 import (
 	"fmt"
-	"github.com/satori/go.uuid"
 	"sync"
+
+	"github.com/satori/go.uuid"
 )
 
 type VariableState struct {
-	Id uuid.UUID
-	Page uuid.UUID
-	Name string
+	Id      uuid.UUID
+	Page    uuid.UUID
+	Name    string
 	Formula string
 }
 
 func buildVariableState(id uuid.UUID, page uuid.UUID, name string, formula string) *VariableState {
 	return &VariableState{
-		Id: id,
-		Page: page,
-		Name: name,
+		Id:      id,
+		Page:    page,
+		Name:    name,
 		Formula: formula,
 	}
 }
@@ -33,7 +34,7 @@ type Repository interface {
 
 func NewVariablesRepo() Repository {
 	return &variablesRepo{
-		varMap: make(map[uuid.UUID]*VariableState),
+		varMap:    make(map[uuid.UUID]*VariableState),
 		pageIndex: make(map[uuid.UUID][]uuid.UUID),
 	}
 }

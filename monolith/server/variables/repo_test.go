@@ -1,8 +1,9 @@
 package variables
 
 import (
-	"github.com/satori/go.uuid"
 	"testing"
+
+	"github.com/satori/go.uuid"
 )
 
 func TestVariablesRepo_CreateVariable(t *testing.T) {
@@ -53,7 +54,6 @@ func TestVariablesRepo_FindPageVariables(t *testing.T) {
 	if f := var1.Formula; f != "22" {
 		t.Errorf("expected formula `22`; found `%s`", f)
 	}
-
 
 	if f := var2.Formula; f != "33" {
 		t.Errorf("expected formula `33`; found `%s`", f)

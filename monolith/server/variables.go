@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/tobyjsullivan/chalk/monolith/server/variables"
 	"log"
 	"strings"
+
+	"github.com/tobyjsullivan/chalk/monolith/server/variables"
 
 	"github.com/satori/go.uuid"
 
