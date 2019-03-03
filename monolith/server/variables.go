@@ -3,58 +3,55 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/tobyjsullivan/chalk/monolith/server/variables"
 	"log"
 	"strings"
-	"sync"
 
 	"github.com/satori/go.uuid"
 
 	"github.com/tobyjsullivan/chalk/monolith"
 )
 
+const maxBatchSize = 100
+
 // variablesServer is used to implement VariablesServer.
 type variablesServer struct {
-	mx        sync.RWMutex
-	varMap    map[uuid.UUID]*varState
-	pageIndex map[uuid.UUID][]uuid.UUID
+	repo variables.Repository
 }
 
 func newVariablesServer() *variablesServer {
 	return &variablesServer{
-		varMap:    make(map[uuid.UUID]*varState),
-		pageIndex: make(map[uuid.UUID][]uuid.UUID),
+		repo: variables.NewVariablesRepo(),
 	}
-}
-
-type varState struct {
-	id      uuid.UUID
-	page    uuid.UUID
-	name    string
-	formula string
 }
 
 func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest) (*monolith.GetVariablesResponse, error) {
 	log.Println("GetVariables")
-	out := make([]*monolith.Variable, len(in.Ids))
-	for i, vid := range in.Ids {
-		id, err := uuid.FromString(vid)
+
+	variableIds := make([]uuid.UUID, len(in.Ids))
+	var err error
+	for i, id := range in.Ids {
+		variableIds[i], err = uuid.FromString(id)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		state, err := s.getVariable(id)
-		if err != nil {
-			return nil, err
-		}
+	states, err := s.repo.GetVariables(variableIds)
+	if err != nil {
+		return nil, err
+	}
 
+	out := make([]*monolith.Variable, len(states))
+	for i, state := range states {
 		out[i] = &monolith.Variable{
-			VariableId: id.String(),
-			Page:       state.page.String(),
-			Name:       state.name,
-			Formula:    state.formula,
+			VariableId: state.Id.String(),
+			Page:       state.Page.String(),
+			Name:       state.Name,
+			Formula:    state.Formula,
 		}
 
-		log.Println("Sending var", state.name, ":", state.formula)
+		log.Println("Sending var", state.Name, ":", state.Formula)
 	}
 
 	return &monolith.GetVariablesResponse{
@@ -69,23 +66,30 @@ func (s *variablesServer) FindVariables(ctx context.Context, in *monolith.FindVa
 		return nil, err
 	}
 
-	var out []*monolith.Variable
-	if len(in.Names) > 0 {
-		out, err = s.findVarsByName(pageId, in.Names)
-		if err != nil {
-			return nil, err
+	var states []*variables.VariableState
+	if l := len(in.Names); l > 0 {
+		if l > maxBatchSize {
+			return nil, fmt.Errorf("max batch size exceeded: %d", l)
 		}
+
+		// normalise names
+		names := make([]string, len(in.Names))
+		for i, n := range in.Names {
+			names[i] = normalizeVarName(n)
+		}
+
+		states = s.repo.FindVariablesByName(pageId, names)
 	} else {
-		varStates := s.findPageVariables(pageId)
-		log.Println("found", len(varStates), "variables")
-		out = make([]*monolith.Variable, len(varStates))
-		for i, s := range varStates {
-			out[i] = &monolith.Variable{
-				VariableId: s.id.String(),
-				Page:       pageId.String(),
-				Name:       s.name,
-				Formula:    s.formula,
-			}
+		states = s.repo.FindPageVariables(pageId)
+	}
+	log.Println("found", len(states), "variables")
+	out := make([]*monolith.Variable, len(states))
+	for i, s := range states {
+		out[i] = &monolith.Variable{
+			VariableId: s.Id.String(),
+			Page:       s.Page.String(),
+			Name:       s.Name,
+			Formula:    s.Formula,
 		}
 	}
 
@@ -101,22 +105,23 @@ func (s *variablesServer) CreateVariable(ctx context.Context, in *monolith.Creat
 		return nil, err
 	}
 
-	id, err := s.createVariable(pageId, in.Name, in.Formula)
+	name := normalizeVarName(in.Name)
+	err = validateName(name)
 	if err != nil {
 		return nil, err
 	}
 
-	state, err := s.getVariable(id)
+	state, err := s.repo.CreateVariable(pageId, name, in.Formula)
 	if err != nil {
 		return nil, err
 	}
 
 	return &monolith.CreateVariableResponse{
 		Variable: &monolith.Variable{
-			VariableId: id.String(),
-			Page:       pageId.String(),
-			Name:       state.name,
-			Formula:    state.formula,
+			VariableId: state.Id.String(),
+			Page:       state.Page.String(),
+			Name:       state.Name,
+			Formula:    state.Formula,
 		},
 	}, nil
 }
@@ -128,186 +133,35 @@ func (s *variablesServer) UpdateVariable(ctx context.Context, in *monolith.Updat
 		return nil, err
 	}
 
+	var state *variables.VariableState
 	if in.Name != "" {
-		err := s.renameVariable(id, in.Name)
+		name := normalizeVarName(in.Name)
+		err = validateName(name)
+		if err != nil {
+			return nil, err
+		}
+
+		state, err = s.repo.RenameVariable(id, name)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if in.Formula != "" {
-		err := s.updateVariable(id, in.Formula)
+		state, err = s.repo.UpdateVariable(id, in.Formula)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	state, err := s.getVariable(id)
-	if err != nil {
-		return nil, err
-	}
-
 	return &monolith.UpdateVariableResponse{
 		Variable: &monolith.Variable{
-			VariableId: id.String(),
-			Page:       state.page.String(),
-			Name:       state.name,
-			Formula:    state.formula,
+			VariableId: state.Id.String(),
+			Page:       state.Page.String(),
+			Name:       state.Name,
+			Formula:    state.Formula,
 		},
 	}, nil
-}
-
-func (s *variablesServer) createVariable(page uuid.UUID, name string, formula string) (uuid.UUID, error) {
-	log.Println("createVariable:", name, formula)
-	err := validateName(name)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-
-	// Check for existing.
-	if varState := s.findVariableByName(page, name); varState != nil {
-		return varState.id, s.updateVariable(varState.id, formula)
-	}
-
-	variableId, err := uuid.NewV4()
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	name = normalizeVarName(name)
-	s.varMap[variableId] = &varState{
-		id:      variableId,
-		page:    page,
-		name:    name,
-		formula: formula,
-	}
-	s.pageIndex[page] = append(s.pageIndex[page], variableId)
-
-	return variableId, nil
-}
-
-func (s *variablesServer) renameVariable(variableId uuid.UUID, name string) error {
-	log.Println("renameVariable:", variableId, name)
-	err := validateName(name)
-	if err != nil {
-		return err
-	}
-
-	s.mx.RLock()
-	state := s.varMap[variableId]
-	s.mx.RUnlock()
-
-	if varState := s.findVariableByName(state.page, name); varState != nil {
-		if varState.id == variableId {
-			// no-op
-			return nil
-		}
-		return fmt.Errorf("variable `%s` already exists", name)
-	}
-
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	oldState, ok := s.varMap[variableId]
-	if !ok {
-		return fmt.Errorf("variable not found: %s", variableId)
-	}
-
-	s.varMap[variableId] = &varState{
-		id:      variableId,
-		page:    oldState.page,
-		name:    name,
-		formula: oldState.formula,
-	}
-
-	return nil
-}
-
-func (s *variablesServer) updateVariable(variableId uuid.UUID, formula string) error {
-	log.Println("updateVariable:", variableId, formula)
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	oldState, ok := s.varMap[variableId]
-	if !ok {
-		return fmt.Errorf("variable not found: %s", variableId)
-	}
-
-	s.varMap[variableId] = &varState{
-		id:      variableId,
-		page:    oldState.page,
-		name:    oldState.name,
-		formula: formula,
-	}
-
-	return nil
-}
-
-func (s *variablesServer) getVariable(id uuid.UUID) (*varState, error) {
-	log.Println("getVariable:", id)
-	s.mx.RLock()
-	defer s.mx.RUnlock()
-
-	state, ok := s.varMap[id]
-	if !ok {
-		return nil, fmt.Errorf("variable not found: %s", id)
-	}
-
-	return state, nil
-}
-
-func (s *variablesServer) findVarsByName(pageId uuid.UUID, names []string) ([]*monolith.Variable, error) {
-	out := make([]*monolith.Variable, 0, len(names))
-	for _, name := range names {
-		varState := s.findVariableByName(pageId, name)
-		if varState == nil {
-			continue
-		}
-
-		out = append(out, &monolith.Variable{
-			VariableId: varState.id.String(),
-			Page:       varState.page.String(),
-			Name:       varState.name,
-			Formula:    varState.formula,
-		})
-
-		log.Println("Sending var", varState.name, ":", varState.formula)
-	}
-
-	return out, nil
-}
-
-func (s *variablesServer) findPageVariables(page uuid.UUID) []*varState {
-	log.Println("findPageVariables:", page)
-
-	s.mx.RLock()
-	defer s.mx.RUnlock()
-
-	pageVars, ok := s.pageIndex[page]
-	if !ok {
-		return []*varState{}
-	}
-
-	out := make([]*varState, len(pageVars))
-	for i, v := range pageVars {
-		out[i] = s.varMap[v]
-	}
-
-	return out
-}
-
-func (s *variablesServer) findVariableByName(page uuid.UUID, name string) *varState {
-	log.Println("findVariableId:", page, name)
-
-	pageVarStates := s.findPageVariables(page)
-
-	for _, state := range pageVarStates {
-		if state.name == name {
-			return state
-		}
-	}
-
-	return nil
 }
 
 func normalizeVarName(name string) string {
