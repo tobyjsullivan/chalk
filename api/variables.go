@@ -37,7 +37,7 @@ type updateVariableResponse struct {
 }
 
 type getPageVariablesResponse struct {
-	Variables []*variableState
+	Variables []*variableState `json:"variables"`
 }
 
 type sessionState struct {
