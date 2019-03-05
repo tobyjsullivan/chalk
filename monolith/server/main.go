@@ -29,9 +29,9 @@ func main() {
 	log.Println("Registering VariablesServer...")
 	monolith.RegisterVariablesServer(s, newVariablesServer())
 	log.Println("Registering SessionsServer...")
-	monolith.RegisterSessionsServer(s, &sessionsServer{})
+	monolith.RegisterSessionsServer(s, newSessionServer())
 	log.Println("Registering PagesServer...")
-	monolith.RegisterPagesServer(s, &pagesServer{})
+	monolith.RegisterPagesServer(s, newPagesServer())
 
 	log.Println("Starting server on", lis.Addr())
 	if err := s.Serve(lis); err != nil {

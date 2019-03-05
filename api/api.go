@@ -16,12 +16,16 @@ const allowedOrigin = "*"
 const headerOrigin = "origin"
 
 var (
+	reSessionsCollection  = regexp.MustCompile("^/sessions$")
+	reSessionsDocument    = regexp.MustCompile("^/sessions/([a-fA-F0-9-]+)$")
 	reVariablesCollection = regexp.MustCompile("^/variables$")
 	reVariablesDocument   = regexp.MustCompile("^/variables/([a-fA-F0-9-]+)$")
 
-	rePathCreateVar = reVariablesCollection
-	rePathUpdateVar = reVariablesDocument
-	rePathGetVars   = reVariablesCollection
+	rePathCreateSession    = reSessionsCollection
+	rePathGetSession       = reSessionsDocument
+	rePathGetPageVariables = regexp.MustCompile("^/pages/([a-fA-F0-9-]+)/variables$")
+	rePathCreateVar        = reVariablesCollection
+	rePathUpdateVar        = reVariablesDocument
 )
 
 type Event struct {
@@ -40,13 +44,22 @@ type Response struct {
 }
 
 type Handler struct {
+	pagesSvc     monolith.PagesClient
 	resolverSvc  resolver.ResolverClient
+	sessionsSvc  monolith.SessionsClient
 	variablesSvc monolith.VariablesClient
 }
 
-func NewHandler(resolverSvc resolver.ResolverClient, variablesSvc monolith.VariablesClient) *Handler {
+func NewHandler(
+	pagesSvc monolith.PagesClient,
+	resolverSvc resolver.ResolverClient,
+	sessionSvc monolith.SessionsClient,
+	variablesSvc monolith.VariablesClient,
+) *Handler {
 	return &Handler{
+		pagesSvc:     pagesSvc,
 		resolverSvc:  resolverSvc,
+		sessionsSvc:  sessionSvc,
 		variablesSvc: variablesSvc,
 	}
 }
@@ -80,8 +93,10 @@ func (h *Handler) doOptions(ctx context.Context, req *Event) (*Response, error) 
 func (h *Handler) doGet(ctx context.Context, req *Event) (*Response, error) {
 	if req.Path == "/health" {
 		return h.doGetHealth(ctx, req)
-	} else if rePathGetVars.MatchString(req.Path) {
-		return h.doGetVariables(ctx, req)
+	} else if rePathGetSession.MatchString(req.Path) {
+		return h.doGetSession(ctx, req)
+	} else if rePathGetPageVariables.MatchString(req.Path) {
+		return h.doGetPageVariables(ctx, req)
 	}
 
 	return &Response{
@@ -92,7 +107,10 @@ func (h *Handler) doGet(ctx context.Context, req *Event) (*Response, error) {
 }
 
 func (h *Handler) doPost(ctx context.Context, req *Event) (*Response, error) {
-	if rePathCreateVar.MatchString(req.Path) {
+	if rePathCreateSession.MatchString(req.Path) {
+		log.Println("Creating session")
+		return h.doCreateSession(ctx, req)
+	} else if rePathCreateVar.MatchString(req.Path) {
 		log.Println("Creating var")
 		return h.doCreateVariable(ctx, req)
 	} else if rePathUpdateVar.MatchString(req.Path) {
@@ -124,6 +142,15 @@ func (h *Handler) doCreateVariable(ctx context.Context, event *Event) (*Response
 		return nil, err
 	}
 
+	if createRequest.Page == "" {
+		return &Response{
+			StatusCode:      http.StatusBadRequest,
+			Headers:         determineCorsHeaders(event),
+			Body:            []byte("must specify page id"),
+			IsBase64Encoded: false,
+		}, nil
+	}
+
 	if createRequest.Name == "" {
 		return &Response{
 			StatusCode:      http.StatusBadRequest,
@@ -133,7 +160,8 @@ func (h *Handler) doCreateVariable(ctx context.Context, event *Event) (*Response
 		}, nil
 	}
 
-	resp, err := h.variablesSvc.SetVariable(ctx, &monolith.SetVariableRequest{
+	resp, err := h.variablesSvc.CreateVariable(ctx, &monolith.CreateVariableRequest{
+		PageId:  createRequest.Page,
 		Name:    createRequest.Name,
 		Formula: createRequest.Formula,
 	})
@@ -174,12 +202,13 @@ func (h *Handler) doUpdateVariable(ctx context.Context, event *Event) (*Response
 
 	matches := rePathUpdateVar.FindStringSubmatch(event.Path)
 	if len(matches) != 2 {
+		// Panic because the router should have verified this previously.
 		panic("Expected ID in path.")
 	}
 
 	id := matches[1]
 	log.Println("Updating", id, ";", updateRequest.Name, ";", updateRequest.Formula)
-	varReq := &monolith.SetVariableRequest{
+	varReq := &monolith.UpdateVariableRequest{
 		Id: id,
 	}
 	if updateRequest.Name != nil {
@@ -189,7 +218,7 @@ func (h *Handler) doUpdateVariable(ctx context.Context, event *Event) (*Response
 		varReq.Formula = *updateRequest.Formula
 	}
 
-	resp, err := h.variablesSvc.SetVariable(ctx, varReq)
+	resp, err := h.variablesSvc.UpdateVariable(ctx, varReq)
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +258,7 @@ func (h *Handler) buildVariableState(ctx context.Context, v *monolith.Variable) 
 	// Execute the formula
 	formula := v.Formula
 	result, err := h.resolverSvc.Resolve(ctx, &resolver.ResolveRequest{
+		PageId:  v.Page,
 		Formula: formula,
 	})
 	if err != nil {
@@ -240,18 +270,120 @@ func (h *Handler) buildVariableState(ctx context.Context, v *monolith.Variable) 
 	return state, nil
 }
 
-func (h *Handler) doGetVariables(ctx context.Context, event *Event) (*Response, error) {
-	ids := event.MultiValueQueryStringParameters["id"]
-	resp, err := h.variablesSvc.GetVariables(ctx, &monolith.GetVariablesRequest{
-		Ids: ids,
+func (h *Handler) doCreateSession(ctx context.Context, event *Event) (*Response, error) {
+	sessResp, err := h.sessionsSvc.CreateSession(ctx, &monolith.CreateSessionRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	sessId := sessResp.Session.SessionId
+	var out createSessionResponse
+	out.Session = &sessionState{
+		Id: sessId,
+	}
+
+	// Create default page
+	pageResp, err := h.pagesSvc.CreatePage(ctx, &monolith.CreatePageRequest{
+		Session: sessId,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var out getVariablesResponse
+	defaultPageId := pageResp.Page.PageId
+	out.Session.Pages = []string{defaultPageId}
+
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(event),
+		Body:            b,
+		IsBase64Encoded: false,
+	}, nil
+}
+
+func (h *Handler) doGetSession(ctx context.Context, event *Event) (*Response, error) {
+	matches := rePathGetSession.FindStringSubmatch(event.Path)
+	if len(matches) != 2 {
+		// Panic because the router should have verified this previously.
+		panic("Expected ID in path.")
+	}
+
+	// Session
+	id := matches[1]
+	sessReq := &monolith.GetSessionRequest{
+		Session: id,
+	}
+	resp, err := h.sessionsSvc.GetSession(ctx, sessReq)
+	if err != nil {
+		return nil, err
+	}
+	var out getSessionResponse
+	if resp.Error != nil {
+		out.Error = &resp.Error.Message
+	}
+	if resp.Session != nil {
+		// Get Pages
+		pagesRes, err := h.pagesSvc.FindPages(ctx, &monolith.FindPagesRequest{
+			Session: resp.Session.SessionId,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if pagesRes.Error != nil {
+			out.Error = &resp.Error.Message
+		}
+
+		pages := make([]string, len(pagesRes.Pages))
+		for i, p := range pagesRes.Pages {
+			pages[i] = p.PageId
+		}
+
+		out.Session = &sessionState{
+			Id:    resp.Session.SessionId,
+			Pages: pages,
+		}
+	}
+
+	b, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		StatusCode:      http.StatusOK,
+		Headers:         determineCorsHeaders(event),
+		Body:            b,
+		IsBase64Encoded: false,
+	}, nil
+}
+
+func (h *Handler) doGetPageVariables(ctx context.Context, event *Event) (*Response, error) {
+	matches := rePathGetPageVariables.FindStringSubmatch(event.Path)
+	if len(matches) != 2 {
+		// Panic because the router should have verified this previously.
+		panic("Expected ID in path.")
+	}
+
+	// Page ID
+	pageId := matches[1]
+	varsReq := &monolith.FindVariablesRequest{
+		PageId: pageId,
+	}
+	resp, err := h.variablesSvc.FindVariables(ctx, varsReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var out getPageVariablesResponse
 	out.Variables = make([]*variableState, len(resp.Values))
+	log.Println("found", len(resp.Values), "variables")
 	for i, v := range resp.Values {
+		log.Println("adding var to resp", v.VariableId)
 		out.Variables[i], err = h.buildVariableState(ctx, v)
 		if err != nil {
 			return nil, err

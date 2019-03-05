@@ -25,8 +25,8 @@ type server struct {
 
 func (s *server) Resolve(ctx context.Context, in *resolver.ResolveRequest) (*resolver.ResolveResponse, error) {
 	log.Println("Received:", in.Formula)
-	obj, err := s.engine.Query(ctx, in.Formula)
 	var res *resolver.ResolveResponse
+	obj, err := s.engine.Query(ctx, in.PageId, in.Formula)
 	if err != nil {
 		res = toErrorResult(err)
 	} else {

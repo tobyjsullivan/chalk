@@ -12,22 +12,26 @@ import (
 )
 
 func main() {
-	resolverSvc := os.Getenv("RESOLVER_SVC")
-	varsSvc := os.Getenv("VARIABLES_SVC")
+	resolverSvcHost := os.Getenv("RESOLVER_SVC")
+	monolithHost := os.Getenv("VARIABLES_SVC")
 
-	resolverConn, err := grpc.Dial(resolverSvc, grpc.WithInsecure())
+	resolverConn, err := grpc.Dial(resolverSvcHost, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial resolver service: %v", err)
 	}
 	defer resolverConn.Close()
 
-	varsConn, err := grpc.Dial(varsSvc, grpc.WithInsecure())
+	monolithConn, err := grpc.Dial(monolithHost, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial variables service: %v", err)
 	}
-	defer varsConn.Close()
+	defer monolithConn.Close()
 
-	handler := api.NewHandler(resolverRpc.NewResolverClient(resolverConn), monolith.NewVariablesClient(varsConn))
+	pagesSvc := monolith.NewPagesClient(monolithConn)
+	resolverSvc := resolverRpc.NewResolverClient(resolverConn)
+	sessionsSvc := monolith.NewSessionsClient(monolithConn)
+	variablesSvc := monolith.NewVariablesClient(monolithConn)
+	handler := api.NewHandler(pagesSvc, resolverSvc, sessionsSvc, variablesSvc)
 
 	lambda.Start(handler.HandleRequest)
 }

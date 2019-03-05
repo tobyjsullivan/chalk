@@ -22,6 +22,76 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type CreateSessionRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CreateSessionRequest) Reset()         { *m = CreateSessionRequest{} }
+func (m *CreateSessionRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateSessionRequest) ProtoMessage()    {}
+func (*CreateSessionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0475a55364240b58, []int{0}
+}
+
+func (m *CreateSessionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateSessionRequest.Unmarshal(m, b)
+}
+func (m *CreateSessionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateSessionRequest.Marshal(b, m, deterministic)
+}
+func (m *CreateSessionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateSessionRequest.Merge(m, src)
+}
+func (m *CreateSessionRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateSessionRequest.Size(m)
+}
+func (m *CreateSessionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateSessionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateSessionRequest proto.InternalMessageInfo
+
+type CreateSessionResponse struct {
+	Session              *Session `protobuf:"bytes,2,opt,name=session,proto3" json:"session,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CreateSessionResponse) Reset()         { *m = CreateSessionResponse{} }
+func (m *CreateSessionResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateSessionResponse) ProtoMessage()    {}
+func (*CreateSessionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0475a55364240b58, []int{1}
+}
+
+func (m *CreateSessionResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateSessionResponse.Unmarshal(m, b)
+}
+func (m *CreateSessionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateSessionResponse.Marshal(b, m, deterministic)
+}
+func (m *CreateSessionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateSessionResponse.Merge(m, src)
+}
+func (m *CreateSessionResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateSessionResponse.Size(m)
+}
+func (m *CreateSessionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateSessionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateSessionResponse proto.InternalMessageInfo
+
+func (m *CreateSessionResponse) GetSession() *Session {
+	if m != nil {
+		return m.Session
+	}
+	return nil
+}
+
 type GetSessionRequest struct {
 	Session              string   `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -33,7 +103,7 @@ func (m *GetSessionRequest) Reset()         { *m = GetSessionRequest{} }
 func (m *GetSessionRequest) String() string { return proto.CompactTextString(m) }
 func (*GetSessionRequest) ProtoMessage()    {}
 func (*GetSessionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0475a55364240b58, []int{0}
+	return fileDescriptor_0475a55364240b58, []int{2}
 }
 
 func (m *GetSessionRequest) XXX_Unmarshal(b []byte) error {
@@ -73,7 +143,7 @@ func (m *GetSessionResponse) Reset()         { *m = GetSessionResponse{} }
 func (m *GetSessionResponse) String() string { return proto.CompactTextString(m) }
 func (*GetSessionResponse) ProtoMessage()    {}
 func (*GetSessionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0475a55364240b58, []int{1}
+	return fileDescriptor_0475a55364240b58, []int{3}
 }
 
 func (m *GetSessionResponse) XXX_Unmarshal(b []byte) error {
@@ -109,6 +179,8 @@ func (m *GetSessionResponse) GetSession() *Session {
 }
 
 func init() {
+	proto.RegisterType((*CreateSessionRequest)(nil), "monolith.CreateSessionRequest")
+	proto.RegisterType((*CreateSessionResponse)(nil), "monolith.CreateSessionResponse")
 	proto.RegisterType((*GetSessionRequest)(nil), "monolith.GetSessionRequest")
 	proto.RegisterType((*GetSessionResponse)(nil), "monolith.GetSessionResponse")
 }
@@ -116,18 +188,21 @@ func init() {
 func init() { proto.RegisterFile("sessions.proto", fileDescriptor_0475a55364240b58) }
 
 var fileDescriptor_0475a55364240b58 = []byte{
-	// 175 bytes of a gzipped FileDescriptorProto
+	// 219 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2b, 0x4e, 0x2d, 0x2e,
 	0xce, 0xcc, 0xcf, 0x2b, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0xe2, 0xc8, 0xcd, 0xcf, 0xcb,
-	0xcf, 0xc9, 0x2c, 0xc9, 0x90, 0xe2, 0x49, 0xc9, 0xcf, 0x4d, 0xcc, 0xcc, 0x83, 0x88, 0x2b, 0xe9,
-	0x72, 0x09, 0xba, 0xa7, 0x96, 0x04, 0x43, 0x14, 0x07, 0xa5, 0x16, 0x96, 0xa6, 0x16, 0x97, 0x08,
-	0x49, 0x70, 0xb1, 0x43, 0xb5, 0x4b, 0x30, 0x2a, 0x30, 0x6a, 0x70, 0x06, 0xc1, 0xb8, 0x4a, 0x19,
-	0x5c, 0x42, 0xc8, 0xca, 0x8b, 0x0b, 0xf2, 0xf3, 0x8a, 0x53, 0x85, 0x54, 0xb9, 0x58, 0x53, 0x8b,
-	0x8a, 0xf2, 0x8b, 0xc0, 0xaa, 0xb9, 0x8d, 0xf8, 0xf5, 0x60, 0x96, 0xe9, 0xb9, 0x82, 0x84, 0x83,
-	0x20, 0xb2, 0x42, 0xda, 0x08, 0x63, 0x99, 0xc0, 0x0a, 0x05, 0x11, 0x0a, 0x61, 0x46, 0xc2, 0x54,
-	0x18, 0x85, 0x72, 0x71, 0x40, 0xc5, 0x8a, 0x85, 0x3c, 0xb9, 0xb8, 0x10, 0xb6, 0x0a, 0x49, 0x23,
-	0x74, 0x61, 0x38, 0x5d, 0x4a, 0x06, 0xbb, 0x24, 0xc4, 0xa1, 0x4a, 0x0c, 0x49, 0x6c, 0x60, 0x6f,
-	0x1b, 0x03, 0x02, 0x00, 0x00, 0xff, 0xff, 0x53, 0x96, 0xb3, 0xe6, 0x20, 0x01, 0x00, 0x00,
+	0xcf, 0xc9, 0x2c, 0xc9, 0x90, 0xe2, 0x49, 0xc9, 0xcf, 0x4d, 0xcc, 0xcc, 0x83, 0x88, 0x2b, 0x89,
+	0x71, 0x89, 0x38, 0x17, 0xa5, 0x26, 0x96, 0xa4, 0x06, 0x43, 0xd4, 0x07, 0xa5, 0x16, 0x96, 0xa6,
+	0x16, 0x97, 0x28, 0xb9, 0x70, 0x89, 0xa2, 0x89, 0x17, 0x17, 0xe4, 0xe7, 0x15, 0xa7, 0x0a, 0x69,
+	0x73, 0xb1, 0x43, 0x8d, 0x96, 0x60, 0x52, 0x60, 0xd4, 0xe0, 0x36, 0x12, 0xd4, 0x83, 0x19, 0xad,
+	0x07, 0x53, 0x0b, 0x53, 0xa1, 0xa4, 0xcb, 0x25, 0xe8, 0x9e, 0x5a, 0x82, 0x6a, 0xb4, 0x90, 0x04,
+	0xc2, 0x04, 0x46, 0x05, 0x46, 0x0d, 0x4e, 0x84, 0xf2, 0x0c, 0x2e, 0x21, 0x64, 0xe5, 0x50, 0x1b,
+	0x55, 0xb9, 0x58, 0x53, 0x8b, 0x8a, 0xf2, 0x8b, 0xc0, 0xaa, 0xb9, 0x8d, 0xf8, 0x11, 0xf6, 0xb9,
+	0x82, 0x84, 0x83, 0x20, 0xb2, 0x24, 0x39, 0xcc, 0x68, 0x25, 0x23, 0x17, 0x07, 0x54, 0xb0, 0x58,
+	0x28, 0x88, 0x8b, 0x17, 0xc5, 0xaf, 0x42, 0x72, 0x08, 0x9d, 0xd8, 0x02, 0x47, 0x4a, 0x1e, 0xa7,
+	0x3c, 0xc4, 0xc9, 0x4a, 0x0c, 0x42, 0x9e, 0x5c, 0x5c, 0x08, 0xaf, 0x08, 0x49, 0x23, 0x34, 0x60,
+	0x84, 0x87, 0x94, 0x0c, 0x76, 0x49, 0x98, 0x51, 0x49, 0x6c, 0xe0, 0x98, 0x32, 0x06, 0x04, 0x00,
+	0x00, 0xff, 0xff, 0x2f, 0x13, 0x43, 0xdd, 0xd3, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -142,6 +217,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SessionsClient interface {
+	CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionResponse, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
 }
 
@@ -151,6 +227,15 @@ type sessionsClient struct {
 
 func NewSessionsClient(cc *grpc.ClientConn) SessionsClient {
 	return &sessionsClient{cc}
+}
+
+func (c *sessionsClient) CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionResponse, error) {
+	out := new(CreateSessionResponse)
+	err := c.cc.Invoke(ctx, "/monolith.Sessions/CreateSession", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *sessionsClient) GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error) {
@@ -164,11 +249,30 @@ func (c *sessionsClient) GetSession(ctx context.Context, in *GetSessionRequest, 
 
 // SessionsServer is the server API for Sessions service.
 type SessionsServer interface {
+	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionResponse, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
 }
 
 func RegisterSessionsServer(s *grpc.Server, srv SessionsServer) {
 	s.RegisterService(&_Sessions_serviceDesc, srv)
+}
+
+func _Sessions_CreateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionsServer).CreateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/monolith.Sessions/CreateSession",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionsServer).CreateSession(ctx, req.(*CreateSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Sessions_GetSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -193,6 +297,10 @@ var _Sessions_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "monolith.Sessions",
 	HandlerType: (*SessionsServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateSession",
+			Handler:    _Sessions_CreateSession_Handler,
+		},
 		{
 			MethodName: "GetSession",
 			Handler:    _Sessions_GetSession_Handler,

@@ -8,16 +8,16 @@ message Error {
 
 message Session {
     string session_id = 1;
-    repeated string pages = 2;
 }
 
 message Page {
     string page_id = 1;
-    repeated string variables = 2;
+    string session = 2;
 }
 
 message Variable {
     string variable_id = 1;
-    string name = 2;
-    string formula = 3;
+    string page = 2;
+    string name = 3;
+    string formula = 4;
 }

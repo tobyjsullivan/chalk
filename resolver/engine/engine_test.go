@@ -17,14 +17,34 @@ func (*fakeVarSvc) GetVariables(ctx context.Context, in *monolith.GetVariablesRe
 	return &monolith.GetVariablesResponse{
 		Values: []*monolith.Variable{
 			{
-				Name:    "var1",
-				Formula: "\"Hello\"",
+				VariableId: "4ddb8e32-7928-41d1-8d0d-f30ce92b3837",
+				Page:       "cc15b3fc-ef63-4de1-b4e8-e6afcb6e021b",
+				Name:       "var1",
+				Formula:    "\"Hello\"",
 			},
 		},
 	}, nil
 }
-func (*fakeVarSvc) SetVariable(ctx context.Context, in *monolith.SetVariableRequest, opts ...grpc.CallOption) (*monolith.SetVariableResponse, error) {
-	return &monolith.SetVariableResponse{}, nil
+
+func (*fakeVarSvc) CreateVariable(context.Context, *monolith.CreateVariableRequest, ...grpc.CallOption) (*monolith.CreateVariableResponse, error) {
+	return &monolith.CreateVariableResponse{}, nil
+}
+
+func (*fakeVarSvc) FindVariables(context.Context, *monolith.FindVariablesRequest, ...grpc.CallOption) (*monolith.FindVariablesResponse, error) {
+	return &monolith.FindVariablesResponse{
+		Values: []*monolith.Variable{
+			{
+				VariableId: "4ddb8e32-7928-41d1-8d0d-f30ce92b3837",
+				Page:       "cc15b3fc-ef63-4de1-b4e8-e6afcb6e021b",
+				Name:       "var1",
+				Formula:    "\"Hello\"",
+			},
+		},
+	}, nil
+}
+
+func (*fakeVarSvc) UpdateVariable(context.Context, *monolith.UpdateVariableRequest, ...grpc.CallOption) (*monolith.UpdateVariableResponse, error) {
+	return &monolith.UpdateVariableResponse{}, nil
 }
 
 func TestQuery(t *testing.T) {
@@ -32,7 +52,7 @@ func TestQuery(t *testing.T) {
 	req := "SUM(1, 2, 3)"
 
 	e := NewEngine(fakeVarSvc)
-	res, err := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), "a9a50bb4-dc5a-4ddf-becd-c18113b60b6f", req)
 
 	if err != nil {
 		t.Fatalf("Unexpected error response: %s", err)
@@ -52,7 +72,7 @@ func TestQueryNested(t *testing.T) {
 	req := "CONCATENATE(\"Hello, \", CONCATENATE(\"World\", \"!\"))"
 
 	e := NewEngine(fakeVarSvc)
-	res, err := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), "78bf0313-bf15-488b-aeea-f0701c86d453", req)
 
 	if err != nil {
 		t.Fatalf("Unexpected error response: %s", err)
@@ -73,7 +93,7 @@ func TestListWithVar(t *testing.T) {
 	req := "[var1]"
 
 	e := NewEngine(fakeVarSvc)
-	res, err := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), "75301daa-0f03-421c-8ee6-dcf092e028b4", req)
 	if err != nil {
 		t.Fatalf("Unexpected error response: %s", err)
 	}
@@ -101,7 +121,7 @@ func TestLambda(t *testing.T) {
 	req := "(a, b) => SUM(a, b)"
 
 	e := NewEngine(fakeVarSvc)
-	res, err := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), "afaded19-f254-4378-bade-8e31cf20aab0", req)
 
 	if err != nil {
 		t.Fatalf("Unexpected error response: %s", err)
@@ -128,7 +148,7 @@ func TestBoolTrue(t *testing.T) {
 	req := "TRUE"
 
 	e := NewEngine(fakeVarSvc)
-	res, err := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), "efbc0288-ea9a-44cc-ba4d-d3b94d9209ab", req)
 
 	if err != nil {
 		t.Fatalf("Unexpected error response: %s", err)
@@ -148,7 +168,7 @@ func TestNumberNegative(t *testing.T) {
 	req := "-34.9"
 
 	e := NewEngine(fakeVarSvc)
-	res, err := e.Query(context.Background(), req)
+	res, err := e.Query(context.Background(), "5f07c9a7-9d92-419e-bf8d-50628a6aa835", req)
 
 	if err != nil {
 		t.Fatalf("Unexpected error response: %s", err)

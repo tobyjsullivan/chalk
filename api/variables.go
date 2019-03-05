@@ -1,6 +1,22 @@
 package api
 
+type createSessionRequest struct {
+}
+
+type createSessionResponse struct {
+	Session *sessionState `json:"session"`
+}
+
+type getSessionRequest struct {
+}
+
+type getSessionResponse struct {
+	Error   *string       `json:"error,omitempty"`
+	Session *sessionState `json:"session,omitempty"`
+}
+
 type createVariableRequest struct {
+	Page    string `json:"page"`
 	Name    string `json:"name"`
 	Formula string `json:"formula"`
 }
@@ -20,7 +36,17 @@ type updateVariableResponse struct {
 	State *variableState `json:"state,omitempty"`
 }
 
-type getVariablesResponse struct {
+type getPageVariablesResponse struct {
+	Variables []*variableState `json:"variables"`
+}
+
+type sessionState struct {
+	Id    string   `json:"id"`
+	Pages []string `json:"pages"`
+}
+
+type pageState struct {
+	Id        string           `json:"id"`
 	Variables []*variableState `json:"variables"`
 }
 
