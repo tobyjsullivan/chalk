@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 const (
@@ -134,19 +135,29 @@ func (o *Object) Type() TypeName {
 }
 
 func (o *Object) ToString() (string, error) {
-	if o.objectType != TypeString {
-		return "", fmt.Errorf("value is not a string: %+v", o)
+	if o.objectType == TypeString {
+		return o.stringValue, nil
 	}
 
-	return o.stringValue, nil
+	// Casting
+	if o.objectType == TypeNumber {
+		return strconv.FormatFloat(o.numberValue, 'f', -1, 64), nil
+	}
+
+	return "", fmt.Errorf("value is not a string: %+v", o)
 }
 
 func (o *Object) ToNumber() (float64, error) {
-	if o.objectType != TypeNumber {
-		return 0, errors.New("value is not a number")
+	if o.objectType == TypeNumber {
+		return o.numberValue, nil
 	}
 
-	return o.numberValue, nil
+	// Casting
+	if o.objectType == TypeString {
+		return strconv.ParseFloat(o.stringValue, 64)
+	}
+
+	return 0, errors.New("value is not a number")
 }
 
 func (o *Object) ToApplication() (*Application, error) {
