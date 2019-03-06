@@ -29,6 +29,10 @@ resource "aws_ecr_repository" "api" {
   name = "chalk-api"
 }
 
+resource "aws_ecr_repository" "web" {
+  name = "chalk-web"
+}
+
 /*
  * ECS Task definitions
  */
