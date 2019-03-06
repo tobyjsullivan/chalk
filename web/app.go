@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -26,6 +27,12 @@ type handler struct {
 }
 
 func (*handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/static") {
+		fs := http.FileServer(http.Dir("/webapp"))
+		http.StripPrefix("/static", fs).ServeHTTP(w, r)
+		return
+	}
+
 	pageId := r.URL.Path[len("/"):]
 	t, err := template.ParseFiles("templates/index.html")
 	if err != nil {

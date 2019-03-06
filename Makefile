@@ -7,6 +7,7 @@ IN_API_LOCAL_SRC := ./api/local
 BUILD_DIR := build
 OUT_WEB := $(BUILD_DIR)/web
 OUT_WEB_TEMPLATES := $(BUILD_DIR)/templates
+OUT_WEB_APP := $(BUILD_DIR)/webapp
 OUT_RESOLVE_SVC := $(BUILD_DIR)/resolver-svc
 OUT_MONOLITH_SVC := $(BUILD_DIR)/monolith-svc
 API_BUILD_LOCAL_EXE := api-local
@@ -45,10 +46,16 @@ $(OUT_WEB): precompile $(GO_FILES) $(OUT_WEB_TEMPLATES)
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux go build -o $(OUT_WEB) ./web
 
+$(OUT_WEB_APP):
+	echo 'Building $(OUT_WEB_APP)...'
+	mkdir -p $(BUILD_DIR)
+	cd webapp && make build
+	cp -R webapp/dist $(OUT_WEB_APP)
+
 $(OUT_WEB_TEMPLATES): $(HTML_FILES)
 	echo 'Building $(OUT_WEB_TEMPLATES)...'
-	mkdir -p $(BUILD_DIR)
-	cp -R ./web/templates $(OUT_WEB_TEMPLATES)
+	mkdir -p $(OUT_WEB_TEMPLATES)
+	cp -R ./web/templates/* $(OUT_WEB_TEMPLATES)
 
 $(DOCKER_IMAGES)/api.tar.gz: docker/Dockerfile.api $(API_BUILD_LOCAL)
 	echo 'Building $(DOCKER_IMAGES)/api.tar.gz...'

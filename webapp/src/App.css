@@ -1,0 +1,18 @@
+/*
+Colour palette:
+- #F7DFD4 Macaron
+- #EABCAC Blush
+- #E2B091 Nude
+- #874E4C Chocolat
+- #482426 Café Noir
+ */
+
+.App {
+  background-color: #F7DFD4;
+  min-height: 100vh;
+  padding: 20px 10px;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: #482426;
+}
