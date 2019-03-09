@@ -117,6 +117,7 @@ init:
 	go get ./...
 	go get golang.org/x/sys/unix
 	cd ./infra && terraform init
+	cd ./cdn && terraform init
 
 push-docker: docker
 	$$(aws ecr get-login --region $$(cd ./infra && terraform output aws_region) --no-include-email)
@@ -136,6 +137,17 @@ restart-service:
 		ecs update-service --force-new-deployment \
 		--cluster "$$(cd ./infra && terraform output ecs_cluster_arn)" \
 		--service "$$(cd ./infra && terraform output api_service)" > /dev/null
+	aws --region $$(cd ./infra && terraform output aws_region) \
+		ecs update-service --force-new-deployment \
+		--cluster "$$(cd ./infra && terraform output ecs_cluster_arn)" \
+		--service "$$(cd ./infra && terraform output web_service)" > /dev/null
 
 test:
 	go test ./...
+
+update-dns:
+	cd cdn && terraform apply \
+		-var "cloudflare_email=$${CLOUDFLARE_EMAIL}" \
+		-var "cloudflare_token=$${CLOUDFLARE_TOKEN}" \
+		-var "api_dns=$$(cd ../infra && terraform output api_alb_dns_name)" \
+		-var "web_dns=$$(cd ../infra && terraform output web_alb_dns_name)"

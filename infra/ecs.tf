@@ -124,6 +124,46 @@ resource "aws_ecs_task_definition" "chalk_api" {
 DEFINITION
 }
 
+resource "aws_ecs_task_definition" "chalk_web" {
+  family                   = "chalk-web"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = "${aws_iam_role.ecs_execution_role.arn}"
+  task_role_arn            = "${aws_iam_role.ecs_execution_role.arn}"
+
+  container_definitions = <<DEFINITION
+[
+  {
+    "essential": true,
+    "image": "${aws_ecr_repository.web.repository_url}",
+    "name": "web",
+    "environment": [
+      {
+        "name": "PORT",
+        "value": "8080"
+      }
+    ],
+    "networkMode": "awsvpc",
+    "portMappings": [
+      {
+        "containerPort": 8080
+      }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${aws_cloudwatch_log_group.chalk_services.name}",
+        "awslogs-region": "${data.aws_region.current.name}",
+        "awslogs-stream-prefix": "web"
+      }
+    }
+  }
+]
+DEFINITION
+}
+
 /*
  * ECS Fargate Cluster
  */
@@ -134,8 +174,8 @@ resource "aws_ecs_cluster" "main" {
 /*
  * Chalk Service
  */
-resource "aws_ecs_service" "main" {
-  name            = "chalk-backend-${var.env}-2"
+resource "aws_ecs_service" "api" {
+  name            = "chalk-api-${var.env}"
   cluster         = "${aws_ecs_cluster.main.id}"
   task_definition = "${aws_ecs_task_definition.chalk_api.arn}"
   desired_count   = 1
@@ -143,7 +183,7 @@ resource "aws_ecs_service" "main" {
 
   depends_on = [
     "aws_iam_role_policy.ecs_execution_role_policy",
-    "aws_alb_target_group.alb_target_group",
+    "aws_alb_target_group.api_alb_target_group",
   ]
 
   network_configuration {
@@ -160,8 +200,40 @@ resource "aws_ecs_service" "main" {
   }
 
   load_balancer {
-    target_group_arn = "${aws_alb_target_group.alb_target_group.arn}"
+    target_group_arn = "${aws_alb_target_group.api_alb_target_group.arn}"
     container_name   = "api"
+    container_port   = "8080"
+  }
+}
+
+resource "aws_ecs_service" "web" {
+  name            = "chalk-web-${var.env}"
+  cluster         = "${aws_ecs_cluster.main.id}"
+  task_definition = "${aws_ecs_task_definition.chalk_web.arn}"
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  depends_on = [
+    "aws_iam_role_policy.ecs_execution_role_policy",
+    "aws_alb_target_group.web_alb_target_group",
+  ]
+
+  network_configuration {
+    security_groups = [
+      "${aws_security_group.vpc_default.id}",
+      "${aws_security_group.ecs_service.id}",
+    ]
+
+    subnets = [
+      "${aws_subnet.public_subnet.*.id}",
+    ]
+
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = "${aws_alb_target_group.web_alb_target_group.arn}"
+    container_name   = "web"
     container_port   = "8080"
   }
 }
@@ -225,10 +297,10 @@ resource "aws_internet_gateway" "ig" {
 }
 
 /*
- * Load balancer
+ * Load balancers
  */
-resource "aws_alb_target_group" "alb_target_group" {
-  name_prefix = "chalk-"
+resource "aws_alb_target_group" "api_alb_target_group" {
+  name        = "chalk-api-${var.env}"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = "${aws_vpc.main.id}"
@@ -242,11 +314,29 @@ resource "aws_alb_target_group" "alb_target_group" {
     path = "/health"
   }
 
-  depends_on = ["aws_alb.alb"]
+  depends_on = ["aws_alb.api_alb"]
+}
+
+resource "aws_alb_target_group" "web_alb_target_group" {
+  name        = "chalk-web--${var.env}"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = "${aws_vpc.main.id}"
+  target_type = "ip"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  health_check {
+    path = "/health"
+  }
+
+  depends_on = ["aws_alb.web_alb"]
 }
 
 resource "aws_security_group" "alb_inbound_sg" {
-  name_prefix = "chalk-web-inbound-sg-"
+  name_prefix = "chalk-inbound-sg-"
   description = "Allow HTTP from Anywhere into ALB"
   vpc_id      = "${aws_vpc.main.id}"
 
@@ -272,23 +362,42 @@ resource "aws_security_group" "alb_inbound_sg" {
   }
 }
 
-resource "aws_alb" "alb" {
-  name_prefix     = "chalk-"
+resource "aws_alb" "api_alb" {
+  name            = "chalk-api"
   subnets         = ["${aws_subnet.public_subnet.*.id}"]
   security_groups = ["${aws_security_group.vpc_default.id}", "${aws_security_group.alb_inbound_sg.id}"]
 }
 
-resource "aws_alb_listener" "alb_listener" {
-  load_balancer_arn = "${aws_alb.alb.arn}"
+resource "aws_alb_listener" "api_alb_listener" {
+  load_balancer_arn = "${aws_alb.api_alb.arn}"
   port              = "80"
   protocol          = "HTTP"
-  depends_on        = ["aws_alb_target_group.alb_target_group"]
+  depends_on        = ["aws_alb_target_group.api_alb_target_group"]
 
   default_action {
-    target_group_arn = "${aws_alb_target_group.alb_target_group.arn}"
+    target_group_arn = "${aws_alb_target_group.api_alb_target_group.arn}"
     type             = "forward"
   }
 }
+
+resource "aws_alb" "web_alb" {
+  name            = "chalk-web"
+  subnets         = ["${aws_subnet.public_subnet.*.id}"]
+  security_groups = ["${aws_security_group.vpc_default.id}", "${aws_security_group.alb_inbound_sg.id}"]
+}
+
+resource "aws_alb_listener" "web_alb_listener" {
+  load_balancer_arn = "${aws_alb.web_alb.arn}"
+  port              = "80"
+  protocol          = "HTTP"
+  depends_on        = ["aws_alb_target_group.web_alb_target_group"]
+
+  default_action {
+    target_group_arn = "${aws_alb_target_group.web_alb_target_group.arn}"
+    type             = "forward"
+  }
+}
+
 
 /*
  * Permissions

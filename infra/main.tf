@@ -56,7 +56,11 @@ output "repo_web_url" {
 }
 
 output "api_alb_dns_name" {
-  value = "${aws_alb.alb.dns_name}"
+  value = "${aws_alb.api_alb.dns_name}"
+}
+
+output "web_alb_dns_name" {
+  value = "${aws_alb.web_alb.dns_name}"
 }
 
 output "website_endpoint" {
@@ -68,5 +72,9 @@ output "ecs_cluster_arn" {
 }
 
 output "api_service" {
-  value = "${aws_ecs_service.main.name}"
+  value = "${aws_ecs_service.api.name}"
+}
+
+output "web_service" {
+  value = "${aws_ecs_service.web.name}"
 }
