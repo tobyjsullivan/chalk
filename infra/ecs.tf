@@ -398,7 +398,6 @@ resource "aws_alb_listener" "web_alb_listener" {
   }
 }
 
-
 /*
  * Permissions
  */
