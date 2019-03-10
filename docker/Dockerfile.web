@@ -1,0 +1,10 @@
+FROM alpine
+
+EXPOSE 8080
+ENV PORT 8080
+
+COPY ["build/web", "./"]
+COPY ["build/templates", "./templates/"]
+COPY ["build/webapp", "./webapp/"]
+
+CMD ["./web"]

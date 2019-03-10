@@ -1,0 +1,16 @@
+
+.Page {
+}
+
+.Page-link {
+  color: #874E4C;
+}
+
+.Page-addButton {
+  text-align: center;
+  width: 200px;
+  margin-right: auto;
+  margin-left: auto;
+  display: block;
+  margin-bottom: 8px;
+}

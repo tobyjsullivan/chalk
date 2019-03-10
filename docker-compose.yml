@@ -7,6 +7,10 @@ services:
     image: chalk-api
     ports:
       - "8080:8080"
+  web:
+    image: chalk-web
+    ports:
+      - "8000:8080"
   resolver-svc:
     environment:
       PORT: '8082'

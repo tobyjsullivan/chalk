@@ -31,14 +31,6 @@ output "aws_region" {
   value = "${data.aws_region.current.id}"
 }
 
-output "api_invoke_url" {
-  value = "${aws_api_gateway_deployment.api_deployment.invoke_url}"
-}
-
-output "executor_function_name" {
-  value = "${aws_lambda_function.executor.function_name}"
-}
-
 output "repo_monolith_svc_url" {
   value = "${aws_ecr_repository.monolith_svc.repository_url}"
 }
@@ -51,12 +43,16 @@ output "repo_api_url" {
   value = "${aws_ecr_repository.api.repository_url}"
 }
 
-output "api_alb_dns_name" {
-  value = "${aws_alb.alb.dns_name}"
+output "repo_web_url" {
+  value = "${aws_ecr_repository.web.repository_url}"
 }
 
-output "website_endpoint" {
-  value = "${aws_s3_bucket.web.website_endpoint}"
+output "api_alb_dns_name" {
+  value = "${aws_alb.api_alb.dns_name}"
+}
+
+output "web_alb_dns_name" {
+  value = "${aws_alb.web_alb.dns_name}"
 }
 
 output "ecs_cluster_arn" {
@@ -64,5 +60,9 @@ output "ecs_cluster_arn" {
 }
 
 output "api_service" {
-  value = "${aws_ecs_service.main.name}"
+  value = "${aws_ecs_service.api.name}"
+}
+
+output "web_service" {
+  value = "${aws_ecs_service.web.name}"
 }
