@@ -6,6 +6,7 @@ import MainScreen from './ui/MainScreen';
 import LoadingScreen from './ui/LoadingScreen';
 import './App.css';
 
+const APP_TITLE = "Messy";
 const DEFAULT_FORMULA = '"Tap Here"';
 const PAGE_PATH_REGEXP = /^\/([a-fA-F0-9-]+)$/;
 
@@ -164,15 +165,13 @@ class App extends Component<AppProps, AppState> {
   render() {
     const {online, currentPage, currentPageVars} = this.state;
 
-    const title = "Messy";
-
     let currentScreen;
     if (currentPage === null) {
-      currentScreen = (<LoadingScreen title={title} />);
+      currentScreen = (<LoadingScreen title={APP_TITLE} />);
     } else {
       currentScreen = (
         <MainScreen
-          title={title}
+          title={APP_TITLE}
           online={online}
           currentPage={currentPage}
           pages={List()}
