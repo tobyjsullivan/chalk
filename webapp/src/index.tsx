@@ -5,7 +5,7 @@ import App from './App';
 import * as serviceWorker from './serviceWorker';
 import ChalkClient from './chalk/ChalkClient';
 import { getActiveSession } from './services/sessions';
-import { VariableState } from './chalk/domain';
+import { Bootstrap } from './bootstrap';
 
 const API_URL = process.env.NODE_ENV === 'production' ? 'https://api.messy.codes' : 'http://localhost:8080';
 
@@ -16,13 +16,25 @@ if ('ontouchstart' in document.documentElement) {
 
 const chalk = new ChalkClient(API_URL);
 
-function getCurrentPath(): string {
-  return document.location.pathname;
+// Load bootstrap (embedded in page html)
+function getBootstrap(): Bootstrap {
+  interface Window {
+    bootstrap: Bootstrap;
+  }
+
+  if (!(window instanceof Window)) {
+    throw 'No bootstrap present in window.';
+  }
+
+  const win = window as unknown as Window;
+  return win.bootstrap;
 }
+
+const bootstrap = getBootstrap();
 
 ReactDOM.render(
   <App
-    currentPath={getCurrentPath()}
+    currentPageId={bootstrap.page_id}
     checkConnection={() => chalk.checkConnection()}
     createVariable={(pageId, name, formula) => chalk.createVariable(pageId, name, formula)}
     updateVariable={(id, formula) => chalk.updateVariable(id, formula)}

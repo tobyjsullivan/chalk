@@ -8,6 +8,40 @@ import (
 	"strings"
 )
 
+type bootstrapObject struct {
+	PageId string `json:"page_id"`
+}
+
+type pageTemplateVariables struct {
+	Bootstrap *bootstrapObject
+}
+
+type handler struct {
+}
+
+func (*handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/static") {
+		fs := http.FileServer(http.Dir("/webapp"))
+		http.StripPrefix("/static", fs).ServeHTTP(w, r)
+		return
+	}
+
+	t, err := template.ParseFiles("templates/index.html")
+	if err != nil {
+		log.Println("error parsing template:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = t.Execute(w, &pageTemplateVariables{
+		Bootstrap: &bootstrapObject{
+			PageId: r.URL.Path[len("/"):],
+		},
+	})
+	if err != nil {
+		log.Println("error executing template:", err)
+	}
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -21,33 +55,4 @@ func main() {
 
 	log.Println("Starting on port", port)
 	log.Fatal(server.ListenAndServe())
-}
-
-type handler struct {
-}
-
-func (*handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/static") {
-		fs := http.FileServer(http.Dir("/webapp"))
-		http.StripPrefix("/static", fs).ServeHTTP(w, r)
-		return
-	}
-
-	pageId := r.URL.Path[len("/"):]
-	t, err := template.ParseFiles("templates/index.html")
-	if err != nil {
-		log.Println("error parsing template:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	err = t.Execute(w, &bootstrap{
-		PageId: pageId,
-	})
-	if err != nil {
-		log.Println("error executing template:", err)
-	}
-}
-
-type bootstrap struct {
-	PageId string
 }

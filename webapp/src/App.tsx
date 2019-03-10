@@ -8,10 +8,9 @@ import './App.css';
 
 const APP_TITLE = "Messy";
 const DEFAULT_FORMULA = '"Tap Here"';
-const PAGE_PATH_REGEXP = /^\/([a-fA-F0-9-]+)$/;
 
 interface AppProps {
-  currentPath: string,
+  currentPageId: string,
   checkConnection: () => Promise<any>,
   getSession: () => Promise<SessionState>,
   getPageVariables: (pageId: string) => Promise<List<VariableState>>,
@@ -42,20 +41,12 @@ class App extends Component<AppProps, AppState> {
   }
 
   async initSession() {
-    const {getSession, currentPath} = this.props;
+    const {getSession, currentPageId} = this.props;
     const session = await getSession();
     this.setState({session});
 
-    if (PAGE_PATH_REGEXP.test(currentPath)) {
-      const match = PAGE_PATH_REGEXP.exec(currentPath);
-      if (match === null) {
-        alert('page not found');
-        this.openDefaultPage();
-        return;
-      }
-
-      const pageId = match[1];
-      this.openPage(pageId)
+    if (currentPageId !== '') {
+      this.openPage(currentPageId)
     } else {
       this.openDefaultPage();
     }
