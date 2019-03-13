@@ -151,6 +151,10 @@ resource "aws_ecs_task_definition" "chalk_web" {
       {
         "name": "PAGES_SVC",
         "value": "chalk-api-alpha.svc.messy.codes:8081"
+      },
+      {
+        "name": "CHALK_API_HOST",
+        "value": "api.messy.codes"
       }
     ],
     "networkMode": "awsvpc",

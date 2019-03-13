@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 
 	"github.com/tobyjsullivan/chalk/monolith/server/variables"
-
-	"github.com/satori/go.uuid"
 
 	"github.com/tobyjsullivan/chalk/monolith"
 )
@@ -29,16 +28,7 @@ func newVariablesServer() *variablesServer {
 func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVariablesRequest) (*monolith.GetVariablesResponse, error) {
 	log.Println("GetVariables")
 
-	variableIds := make([]uuid.UUID, len(in.Ids))
-	var err error
-	for i, id := range in.Ids {
-		variableIds[i], err = uuid.FromString(id)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	states, err := s.repo.GetVariables(variableIds)
+	states, err := s.repo.GetVariables(in.Ids)
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +36,8 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 	out := make([]*monolith.Variable, len(states))
 	for i, state := range states {
 		out[i] = &monolith.Variable{
-			VariableId: state.Id.String(),
-			Page:       state.Page.String(),
+			VariableId: state.Id,
+			Page:       state.Page,
 			Name:       state.Name,
 			Formula:    state.Formula,
 		}
@@ -62,9 +52,9 @@ func (s *variablesServer) GetVariables(ctx context.Context, in *monolith.GetVari
 
 func (s *variablesServer) FindVariables(ctx context.Context, in *monolith.FindVariablesRequest) (*monolith.FindVariablesResponse, error) {
 	log.Println("FindVariables")
-	pageId, err := uuid.FromString(in.PageId)
-	if err != nil {
-		return nil, err
+	pageId := in.PageId
+	if pageId == "" {
+		return nil, errors.New("pageId cannot be empty")
 	}
 
 	var states []*variables.VariableState
@@ -87,8 +77,8 @@ func (s *variablesServer) FindVariables(ctx context.Context, in *monolith.FindVa
 	out := make([]*monolith.Variable, len(states))
 	for i, s := range states {
 		out[i] = &monolith.Variable{
-			VariableId: s.Id.String(),
-			Page:       s.Page.String(),
+			VariableId: s.Id,
+			Page:       s.Page,
 			Name:       s.Name,
 			Formula:    s.Formula,
 		}
@@ -101,13 +91,13 @@ func (s *variablesServer) FindVariables(ctx context.Context, in *monolith.FindVa
 
 func (s *variablesServer) CreateVariable(ctx context.Context, in *monolith.CreateVariableRequest) (*monolith.CreateVariableResponse, error) {
 	log.Println("CreateVariable")
-	pageId, err := uuid.FromString(in.PageId)
-	if err != nil {
-		return nil, err
+	pageId := in.PageId
+	if pageId == "" {
+		return nil, errors.New("pageId cannot be empty")
 	}
 
 	name := normalizeVarName(in.Name)
-	err = validateName(name)
+	err := validateName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +109,8 @@ func (s *variablesServer) CreateVariable(ctx context.Context, in *monolith.Creat
 
 	return &monolith.CreateVariableResponse{
 		Variable: &monolith.Variable{
-			VariableId: state.Id.String(),
-			Page:       state.Page.String(),
+			VariableId: state.Id,
+			Page:       state.Page,
 			Name:       state.Name,
 			Formula:    state.Formula,
 		},
@@ -129,11 +119,12 @@ func (s *variablesServer) CreateVariable(ctx context.Context, in *monolith.Creat
 
 func (s *variablesServer) UpdateVariable(ctx context.Context, in *monolith.UpdateVariableRequest) (*monolith.UpdateVariableResponse, error) {
 	log.Println("UpdateVariable")
-	id, err := uuid.FromString(in.Id)
-	if err != nil {
-		return nil, err
+	id := in.Id
+	if id == "" {
+		return nil, errors.New("pageId cannot be empty")
 	}
 
+	var err error
 	var state *variables.VariableState
 	if in.Name != "" {
 		name := normalizeVarName(in.Name)
@@ -157,8 +148,8 @@ func (s *variablesServer) UpdateVariable(ctx context.Context, in *monolith.Updat
 
 	return &monolith.UpdateVariableResponse{
 		Variable: &monolith.Variable{
-			VariableId: state.Id.String(),
-			Page:       state.Page.String(),
+			VariableId: state.Id,
+			Page:       state.Page,
 			Name:       state.Name,
 			Formula:    state.Formula,
 		},

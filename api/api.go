@@ -17,13 +17,13 @@ const headerOrigin = "origin"
 
 var (
 	reSessionsCollection  = regexp.MustCompile("^/sessions$")
-	reSessionsDocument    = regexp.MustCompile("^/sessions/([a-fA-F0-9-]+)$")
+	reSessionsDocument    = regexp.MustCompile("^/sessions/([a-zA-Z0-9-_]+)$")
 	reVariablesCollection = regexp.MustCompile("^/variables$")
-	reVariablesDocument   = regexp.MustCompile("^/variables/([a-fA-F0-9-]+)$")
+	reVariablesDocument   = regexp.MustCompile("^/variables/([a-zA-Z0-9-_]+)$")
 
 	rePathCreateSession    = reSessionsCollection
 	rePathGetSession       = reSessionsDocument
-	rePathGetPageVariables = regexp.MustCompile("^/pages/([a-fA-F0-9-]+)/variables$")
+	rePathGetPageVariables = regexp.MustCompile("^/pages/([a-zA-Z0-9-_]+)/variables$")
 	rePathCreateVar        = reVariablesCollection
 	rePathUpdateVar        = reVariablesDocument
 )

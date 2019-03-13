@@ -7,14 +7,10 @@ import ChalkClient from './chalk/ChalkClient';
 import { getActiveSession } from './services/sessions';
 import { Bootstrap } from './bootstrap';
 
-const API_URL = process.env.NODE_ENV === 'production' ? 'https://api.messy.codes' : 'http://localhost:8080';
-
 // Allow click-outside to work on iOS.
 if ('ontouchstart' in document.documentElement) {
   document.body.style.cursor = 'pointer';
 }
-
-const chalk = new ChalkClient(API_URL);
 
 // Load bootstrap (embedded in page html)
 function getBootstrap(): Bootstrap {
@@ -31,6 +27,9 @@ function getBootstrap(): Bootstrap {
 }
 
 const bootstrap = getBootstrap();
+const api_url = `//${bootstrap.api_host}`;
+
+const chalk = new ChalkClient(api_url);
 
 ReactDOM.render(
   <App

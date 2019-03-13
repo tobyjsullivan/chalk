@@ -4,11 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"log"
 	"sync"
-
-	"github.com/satori/go.uuid"
 
 	"github.com/tobyjsullivan/chalk/monolith"
 )
@@ -16,33 +14,31 @@ import (
 // Should be a multiple of 3 to avoid padding with `=` during base64 encoding.
 const pageIdSizeBytes = 9
 
-type pageId [pageIdSizeBytes]byte
-
 type pagesServer struct {
 	mx         sync.RWMutex
-	pages      map[pageId]*pageState
-	idxSession map[uuid.UUID][]pageId
+	pages      map[string]*pageState
+	idxSession map[string][]string
 }
 
 type pageState struct {
-	session uuid.UUID
+	session string
 }
 
 func newPagesServer() *pagesServer {
 	return &pagesServer{
-		pages:      make(map[pageId]*pageState),
-		idxSession: make(map[uuid.UUID][]pageId),
+		pages:      make(map[string]*pageState),
+		idxSession: make(map[string][]string),
 	}
 }
 
 func (s *pagesServer) CreatePage(ctx context.Context, req *monolith.CreatePageRequest) (*monolith.CreatePageResponse, error) {
 	log.Println("CreatePage")
-	sessId, err := uuid.FromString(req.Session)
-	if err != nil {
-		return nil, err
-	}
 
-	pageId, _ := generatePid()
+	sessId := req.Session
+	if sessId == "" {
+		return nil, errors.New("sessionId cannot be empty")
+	}
+	pageId, _ := generatePageId()
 
 	s.mx.Lock()
 	defer s.mx.Unlock()
@@ -53,8 +49,8 @@ func (s *pagesServer) CreatePage(ctx context.Context, req *monolith.CreatePageRe
 
 	return &monolith.CreatePageResponse{
 		Page: &monolith.Page{
-			PageId:  pageId.String(),
-			Session: sessId.String(),
+			PageId:  pageId,
+			Session: sessId,
 		},
 	}, nil
 }
@@ -65,10 +61,9 @@ func (s *pagesServer) GetPages(ctx context.Context, req *monolith.GetPagesReques
 
 	s.mx.RLock()
 	defer s.mx.RUnlock()
-	for _, p := range req.PageIds {
-		pageId, err := pidFromString(p)
-		if err != nil {
-			return nil, err
+	for _, pageId := range req.PageIds {
+		if pageId == "" {
+			return nil, errors.New("pageId cannot be empty")
 		}
 
 		state, ok := s.pages[pageId]
@@ -77,8 +72,8 @@ func (s *pagesServer) GetPages(ctx context.Context, req *monolith.GetPagesReques
 		}
 
 		out = append(out, &monolith.Page{
-			PageId:  pageId.String(),
-			Session: state.session.String(),
+			PageId:  pageId,
+			Session: state.session,
 		})
 	}
 
@@ -89,9 +84,9 @@ func (s *pagesServer) GetPages(ctx context.Context, req *monolith.GetPagesReques
 
 func (s *pagesServer) FindPages(ctx context.Context, req *monolith.FindPagesRequest) (*monolith.FindPagesResponse, error) {
 	log.Println("FindPages")
-	sessId, err := uuid.FromString(req.Session)
-	if err != nil {
-		return nil, err
+	sessId := req.Session
+	if sessId == "" {
+		return nil, errors.New("sessionId cannot be empty")
 	}
 
 	s.mx.RLock()
@@ -108,8 +103,8 @@ func (s *pagesServer) FindPages(ctx context.Context, req *monolith.FindPagesRequ
 	pages := make([]*monolith.Page, len(pageIds))
 	for i, pageId := range pageIds {
 		pages[i] = &monolith.Page{
-			PageId:  pageId.String(),
-			Session: sessId.String(),
+			PageId:  pageId,
+			Session: sessId,
 		}
 	}
 
@@ -118,33 +113,11 @@ func (s *pagesServer) FindPages(ctx context.Context, req *monolith.FindPagesRequ
 	}, nil
 }
 
-func generatePid() (pageId, error) {
-	pid := pageId{}
+func generatePageId() (string, error) {
+	pid := [pageIdSizeBytes]byte{}
 	if _, err := rand.Read(pid[:]); err != nil {
-		return pageId{}, err
+		return "", err
 	}
 
-	return pid, nil
-}
-
-func pidFromString(s string) (pageId, error) {
-	b, err := base64.URLEncoding.DecodeString(s)
-	if err != nil {
-		return pageId{}, err
-	}
-
-	// For now we want exact sizes. It seems reasonable that longer sizes will be needed in future.
-	// The primary risk right now would be the unintended use of shorter strings (eg, if someone visits /about).
-	if n := len(b); n != pageIdSizeBytes {
-		return pageId{}, fmt.Errorf("unexpected pageId lenght: %d bytes", n)
-	}
-
-	pid := pageId{}
-	copy(pid[:], b)
-
-	return pid, nil
-}
-
-func (pid pageId) String() string {
-	return base64.URLEncoding.EncodeToString(pid[:])
+	return base64.URLEncoding.EncodeToString(pid[:]), nil
 }

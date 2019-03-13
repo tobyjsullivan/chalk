@@ -14,7 +14,8 @@ import (
 const cookieCurrentSession = "CURRENT_SESSION"
 
 type bootstrapObject struct {
-	PageId string `json:"page_id"`
+	ChalkApiHost string `json:"api_host"`
+	PageId       string `json:"page_id"`
 }
 
 type pageTemplateVariables struct {
@@ -22,14 +23,16 @@ type pageTemplateVariables struct {
 }
 
 type handler struct {
-	pagesSvc    monolith.PagesClient
-	sessionsSvc monolith.SessionsClient
+	chalkApiHost string
+	pagesSvc     monolith.PagesClient
+	sessionsSvc  monolith.SessionsClient
 }
 
-func newHandler(pagesSvc monolith.PagesClient, sessionsSvc monolith.SessionsClient) http.Handler {
+func newHandler(chalkApiHost string, pagesSvc monolith.PagesClient, sessionsSvc monolith.SessionsClient) http.Handler {
 	return &handler{
-		pagesSvc:    pagesSvc,
-		sessionsSvc: sessionsSvc,
+		chalkApiHost: chalkApiHost,
+		pagesSvc:     pagesSvc,
+		sessionsSvc:  sessionsSvc,
 	}
 }
 
@@ -56,7 +59,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	err = t.Execute(w, &pageTemplateVariables{
 		Bootstrap: &bootstrapObject{
-			PageId: r.URL.Path[len("/"):],
+			ChalkApiHost: h.chalkApiHost,
+			PageId:       r.URL.Path[len("/"):],
 		},
 	})
 	if err != nil {
@@ -129,6 +133,7 @@ func (h *handler) handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	chalkApiHost := os.Getenv("CHALK_API_HOST")
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -155,7 +160,7 @@ func main() {
 
 	server := http.Server{
 		Addr:    ":" + port,
-		Handler: newHandler(pagesSvc, sessionsSvc),
+		Handler: newHandler(chalkApiHost, pagesSvc, sessionsSvc),
 	}
 
 	log.Println("Starting on port", port)

@@ -51,7 +51,7 @@ $(OUT_WEB_APP): $(WEBAPP_FILES)
 	echo 'Building $(OUT_WEB_APP)...'
 	mkdir -p $(BUILD_DIR)
 	cd webapp && make build
-	cp -R webapp/dist $(OUT_WEB_APP)
+	cp -R webapp/dist/ $(OUT_WEB_APP)
 
 $(OUT_WEB_TEMPLATES): $(TEMPLATE_FILES)
 	echo 'Building $(OUT_WEB_TEMPLATES)...'

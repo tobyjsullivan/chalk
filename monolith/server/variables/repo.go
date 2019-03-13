@@ -8,13 +8,13 @@ import (
 )
 
 type VariableState struct {
-	Id      uuid.UUID
-	Page    uuid.UUID
+	Id      string
+	Page    string
 	Name    string
 	Formula string
 }
 
-func buildVariableState(id uuid.UUID, page uuid.UUID, name string, formula string) *VariableState {
+func buildVariableState(id string, page string, name string, formula string) *VariableState {
 	return &VariableState{
 		Id:      id,
 		Page:    page,
@@ -24,41 +24,41 @@ func buildVariableState(id uuid.UUID, page uuid.UUID, name string, formula strin
 }
 
 type Repository interface {
-	GetVariables(variableIds []uuid.UUID) ([]*VariableState, error)
-	FindPageVariables(pageId uuid.UUID) []*VariableState
-	FindVariablesByName(pageId uuid.UUID, names []string) []*VariableState
-	CreateVariable(pageId uuid.UUID, name, formula string) (*VariableState, error)
-	UpdateVariable(variableId uuid.UUID, formula string) (*VariableState, error)
-	RenameVariable(variableId uuid.UUID, name string) (*VariableState, error)
+	GetVariables(variableIds []string) ([]*VariableState, error)
+	FindPageVariables(pageId string) []*VariableState
+	FindVariablesByName(pageId string, names []string) []*VariableState
+	CreateVariable(pageId, name, formula string) (*VariableState, error)
+	UpdateVariable(variableId, formula string) (*VariableState, error)
+	RenameVariable(variableId, name string) (*VariableState, error)
 }
 
 func NewVariablesRepo() Repository {
 	return &variablesRepo{
-		varMap:    make(map[uuid.UUID]*VariableState),
-		pageIndex: make(map[uuid.UUID][]uuid.UUID),
+		varMap:    make(map[string]*VariableState),
+		pageIndex: make(map[string][]string),
 	}
 }
 
 type variablesRepo struct {
 	mx        sync.RWMutex
-	varMap    map[uuid.UUID]*VariableState
-	pageIndex map[uuid.UUID][]uuid.UUID
+	varMap    map[string]*VariableState
+	pageIndex map[string][]string
 }
 
-func (r *variablesRepo) getVariableState(variableId uuid.UUID) *VariableState {
+func (r *variablesRepo) getVariableState(variableId string) *VariableState {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 	return r.varMap[variableId]
 }
 
-func (r *variablesRepo) getPageVariableIds(pageId uuid.UUID) []uuid.UUID {
+func (r *variablesRepo) getPageVariableIds(pageId string) []string {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 	variableIds := r.pageIndex[pageId]
 	return variableIds
 }
 
-func (r *variablesRepo) GetVariables(variableIds []uuid.UUID) ([]*VariableState, error) {
+func (r *variablesRepo) GetVariables(variableIds []string) ([]*VariableState, error) {
 	out := make([]*VariableState, len(variableIds))
 	for i, variableId := range variableIds {
 		out[i] = r.getVariableState(variableId)
@@ -70,7 +70,7 @@ func (r *variablesRepo) GetVariables(variableIds []uuid.UUID) ([]*VariableState,
 	return out, nil
 }
 
-func (r *variablesRepo) FindPageVariables(pageId uuid.UUID) []*VariableState {
+func (r *variablesRepo) FindPageVariables(pageId string) []*VariableState {
 	pageVars := r.getPageVariableIds(pageId)
 	out := make([]*VariableState, len(pageVars))
 	for i, variableId := range pageVars {
@@ -80,7 +80,7 @@ func (r *variablesRepo) FindPageVariables(pageId uuid.UUID) []*VariableState {
 	return out
 }
 
-func (r *variablesRepo) FindVariablesByName(pageId uuid.UUID, names []string) []*VariableState {
+func (r *variablesRepo) FindVariablesByName(pageId string, names []string) []*VariableState {
 	pageVars := r.getPageVariableIds(pageId)
 	nameMap := make(map[string]*VariableState)
 
@@ -99,13 +99,13 @@ func (r *variablesRepo) FindVariablesByName(pageId uuid.UUID, names []string) []
 	return out
 }
 
-func (r *variablesRepo) CreateVariable(pageId uuid.UUID, name, formula string) (*VariableState, error) {
+func (r *variablesRepo) CreateVariable(pageId, name, formula string) (*VariableState, error) {
 	existing := r.FindVariablesByName(pageId, []string{name})
 	if len(existing) > 0 {
 		return nil, fmt.Errorf("variable `%s` already exists", name)
 	}
 
-	id, err := uuid.NewV4()
+	id, err := generateVariableId()
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (r *variablesRepo) addVariable(state *VariableState) {
 	r.pageIndex[state.Page] = append(r.pageIndex[state.Page], state.Id)
 }
 
-func (r *variablesRepo) UpdateVariable(variableId uuid.UUID, formula string) (*VariableState, error) {
+func (r *variablesRepo) UpdateVariable(variableId, formula string) (*VariableState, error) {
 	state := r.getVariableState(variableId)
 	if state == nil {
 		return nil, fmt.Errorf("variable %s does not exist", variableId)
@@ -137,7 +137,7 @@ func (r *variablesRepo) UpdateVariable(variableId uuid.UUID, formula string) (*V
 
 	return newState, nil
 }
-func (r *variablesRepo) RenameVariable(variableId uuid.UUID, name string) (*VariableState, error) {
+func (r *variablesRepo) RenameVariable(variableId, name string) (*VariableState, error) {
 	state := r.getVariableState(variableId)
 	if state == nil {
 		return nil, fmt.Errorf("variable %s does not exist", variableId)
@@ -149,4 +149,12 @@ func (r *variablesRepo) RenameVariable(variableId uuid.UUID, name string) (*Vari
 	r.varMap[variableId] = newState
 
 	return newState, nil
+}
+
+func generateVariableId() (string, error) {
+	if id, err := uuid.NewV4(); err != nil {
+		return "", err
+	} else {
+		return id.String(), nil
+	}
 }
