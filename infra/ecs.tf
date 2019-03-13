@@ -143,6 +143,14 @@ resource "aws_ecs_task_definition" "chalk_web" {
       {
         "name": "PORT",
         "value": "8080"
+      },
+      {
+        "name": "SESSIONS_SVC",
+        "value": "chalk-api-alpha.svc.messy.codes:8081"
+      },
+      {
+        "name": "PAGES_SVC",
+        "value": "chalk-api-alpha.svc.messy.codes:8081"
       }
     ],
     "networkMode": "awsvpc",
@@ -171,6 +179,33 @@ resource "aws_ecs_cluster" "main" {
   name = "chalk-cluster"
 }
 
+/**
+ * Service Discovery
+ */
+resource "aws_service_discovery_private_dns_namespace" "chalk" {
+  name = "svc.messy.codes"
+  vpc  = "${aws_vpc.main.id}"
+}
+
+resource "aws_service_discovery_service" "chalk_api" {
+  name = "chalk-api-${var.env}"
+
+  dns_config {
+    namespace_id = "${aws_service_discovery_private_dns_namespace.chalk.id}"
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+}
+
 /*
  * Chalk Service
  */
@@ -184,6 +219,7 @@ resource "aws_ecs_service" "api" {
   depends_on = [
     "aws_iam_role_policy.ecs_execution_role_policy",
     "aws_alb_target_group.api_alb_target_group",
+    "aws_service_discovery_service.chalk_api",
   ]
 
   network_configuration {
@@ -203,6 +239,11 @@ resource "aws_ecs_service" "api" {
     target_group_arn = "${aws_alb_target_group.api_alb_target_group.arn}"
     container_name   = "api"
     container_port   = "8080"
+  }
+
+  service_registries {
+    registry_arn   = "${aws_service_discovery_service.chalk_api.arn}"
+    container_name = "monolith-svc"
   }
 }
 
@@ -318,7 +359,7 @@ resource "aws_alb_target_group" "api_alb_target_group" {
 }
 
 resource "aws_alb_target_group" "web_alb_target_group" {
-  name        = "chalk-web--${var.env}"
+  name        = "chalk-web-${var.env}"
   port        = 8080
   protocol    = "HTTP"
   vpc_id      = "${aws_vpc.main.id}"

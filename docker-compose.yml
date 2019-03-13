@@ -8,6 +8,9 @@ services:
     ports:
       - "8080:8080"
   web:
+    environment:
+      SESSIONS_SVC: 'monolith-svc:8081'
+      PAGES_SVC: 'monolith-svc:8081'
     image: chalk-web
     ports:
       - "8000:8080"
