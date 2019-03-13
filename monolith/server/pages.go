@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"log"
 	"sync"
 
@@ -10,10 +13,15 @@ import (
 	"github.com/tobyjsullivan/chalk/monolith"
 )
 
+// Should be a multiple of 3 to avoid padding with `=` during base64 encoding.
+const pageIdSizeBytes = 9
+
+type pageId [pageIdSizeBytes]byte
+
 type pagesServer struct {
 	mx         sync.RWMutex
-	pages      map[uuid.UUID]*pageState
-	idxSession map[uuid.UUID][]uuid.UUID
+	pages      map[pageId]*pageState
+	idxSession map[uuid.UUID][]pageId
 }
 
 type pageState struct {
@@ -22,8 +30,8 @@ type pageState struct {
 
 func newPagesServer() *pagesServer {
 	return &pagesServer{
-		pages:      make(map[uuid.UUID]*pageState),
-		idxSession: make(map[uuid.UUID][]uuid.UUID),
+		pages:      make(map[pageId]*pageState),
+		idxSession: make(map[uuid.UUID][]pageId),
 	}
 }
 
@@ -34,7 +42,7 @@ func (s *pagesServer) CreatePage(ctx context.Context, req *monolith.CreatePageRe
 		return nil, err
 	}
 
-	pageId, _ := uuid.NewV4()
+	pageId, _ := generatePid()
 
 	s.mx.Lock()
 	defer s.mx.Unlock()
@@ -58,7 +66,7 @@ func (s *pagesServer) GetPages(ctx context.Context, req *monolith.GetPagesReques
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 	for _, p := range req.PageIds {
-		pageId, err := uuid.FromString(p)
+		pageId, err := pidFromString(p)
 		if err != nil {
 			return nil, err
 		}
@@ -108,4 +116,35 @@ func (s *pagesServer) FindPages(ctx context.Context, req *monolith.FindPagesRequ
 	return &monolith.FindPagesResponse{
 		Pages: pages,
 	}, nil
+}
+
+func generatePid() (pageId, error) {
+	pid := pageId{}
+	if _, err := rand.Read(pid[:]); err != nil {
+		return pageId{}, err
+	}
+
+	return pid, nil
+}
+
+func pidFromString(s string) (pageId, error) {
+	b, err := base64.URLEncoding.DecodeString(s)
+	if err != nil {
+		return pageId{}, err
+	}
+
+	// For now we want exact sizes. It seems reasonable that longer sizes will be needed in future.
+	// The primary risk right now would be the unintended use of shorter strings (eg, if someone visits /about).
+	if n := len(b); n != pageIdSizeBytes {
+		return pageId{}, fmt.Errorf("unexpected pageId lenght: %d bytes", n)
+	}
+
+	pid := pageId{}
+	copy(pid[:], b)
+
+	return pid, nil
+}
+
+func (pid pageId) String() string {
+	return base64.URLEncoding.EncodeToString(pid[:])
 }
