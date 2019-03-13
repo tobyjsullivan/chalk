@@ -183,6 +183,8 @@ resource "aws_ecs_cluster" "main" {
  * Service Discovery
  */
 resource "aws_service_discovery_private_dns_namespace" "chalk" {
+  // There seems to be some issue with using a .local namespace even though that would be best practice.
+  // I believe the issue is with Docker but haven't bothered to confirm.
   name = "svc.messy.codes"
   vpc  = "${aws_vpc.main.id}"
 }
