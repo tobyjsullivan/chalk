@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!--
+  -- ATTENTION
+  -- This file is only used for local testing.
+  -- The actual app uses web/templates/index.html.
+  -- ATTENTION
+  -->
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -10,6 +16,12 @@
     <meta name="theme-color" content="#000000" />
     <link rel="stylesheet" href="/index.css">
     <title>Anyone can build apps</title>
+    <script>
+        window.bootstrap = {
+            "api_host": "localhost:8080",
+            "page_id": "aaa",
+        };
+    </script>
 </head>
 <body>
 <noscript>You need to enable JavaScript to run this app.</noscript>

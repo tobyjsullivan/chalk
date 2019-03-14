@@ -2,3 +2,10 @@
 .MainScreen {
 }
 
+.MainScreen-status {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    max-width: 250px;
+}
+

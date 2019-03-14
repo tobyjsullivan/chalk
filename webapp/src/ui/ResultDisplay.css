@@ -9,6 +9,8 @@
 }
 
 .ResultDisplay-list {
+  background-color: #fff;
+  color: #000;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -17,16 +19,42 @@
 .ResultDisplay-listItem {
   border: 1px solid #482426;
   width: 100%;
-  padding: 4px;
 }
 
 .ResultDisplay-listItem:not(:last-of-type) {
   border-bottom: none;
 }
 
+/*.ResultDisplay-cell {*/
+  /*border: 1px solid #482426;*/
+  /*width: 100%;*/
+  /*padding: 4px;*/
+/*}*/
+
+.ResultDisplay-cell:not(:last-of-type) {
+  border-bottom: none;
+}
+
+.ResultDisplay-table {
+  border: 0;
+  border-collapse: collapse;
+  background-color: #fff;
+  color: #000;
+  width: 100%;
+}
+
+.ResultDisplay-row {
+}
+
+.ResultDisplay-cell {
+  padding: 2px 4px;
+}
+
 .ResultDisplay-record {
   border: 1px solid #482426;
   border-collapse: collapse;
+  background-color: #fff;
+  color: #000;
 }
 
 .ResultDisplay-recordRow {
@@ -37,10 +65,12 @@
   text-align: left;
   border: 1px solid #482426;
   padding: 4px;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .ResultDisplay-recordValue {
   border: 1px solid #482426;
-  padding: 4px;
   width: 100%;
+  padding: 0;
 }

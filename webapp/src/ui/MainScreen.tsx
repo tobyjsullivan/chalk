@@ -51,7 +51,7 @@ const MainScreen = ({title, online, currentPage, pages, onAddVar, variables, onO
         onAddVar={onAddVar}
         onVarChange={onVarChange}
         onVarRename={onVarRename} />
-      <p>Status: {status}</p>
+      <p className="MainScreen-status">Status: {status}</p>
     </div>
   );
 };

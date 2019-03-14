@@ -1,16 +1,16 @@
 .Widget {
   max-width: 650px;
-  margin: auto;
+  margin: 4px auto;
   border: 2px #482426 solid;
-  border-radius: 10px;
-  margin-bottom: 8px;
   overflow: hidden;
+  display: grid;
+  grid-template-columns: 100px auto;
 }
 
 .Widget-var_name {
   background-color: #482426;
   color: #EABCAC;
-  padding: 4px;
+  padding: 2px 4px;
 }
 
 .Widget-formula_window {
@@ -29,8 +29,5 @@
 }
 
 .Widget-result_window {
-  background-color: #EABCAC;
-  padding: 4px;
-  min-height: 36px;
   box-sizing: border-box;
 }

@@ -40,7 +40,7 @@ class FormulaWidget extends Component<PropsType, StateType> {
     disabled: false,
     currentFormula: this.props.formula,
     currentName: this.props.varName,
-  }
+  };
 
   componentDidMount() {
     this.focus()

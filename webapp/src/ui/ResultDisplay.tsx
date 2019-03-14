@@ -2,22 +2,64 @@ import React from 'react';
 import {Result} from '../chalk/domain/resolver';
 import './ResultDisplay.css';
 
-interface PropsType {
+interface ResultDisplayCellPropsType {
+  value: string,
+}
+
+const ResultDisplayCell = ({value}: ResultDisplayCellPropsType) => {
+  return (<td className="ResultDisplay-cell">{value}</td>);
+};
+
+interface ResultDisplayRowPropTypes {
+  values: ReadonlyArray<string>,
+}
+
+const ResultDisplayRow = ({values}: ResultDisplayRowPropTypes) => {
+  const cells = values.map((v) => (<ResultDisplayCell key={v} value={v}/>));
+
+  return (
+      <tr className="ResultDisplay-row">
+        {cells}
+      </tr>
+  );
+};
+
+interface ResultDisplayTablePropTypes {
+  rows: ReadonlyArray<ReadonlyArray<string>>,
+}
+
+const ResultDisplayTable = ({rows}: ResultDisplayTablePropTypes) => {
+  const rowElements = rows.map((r) => (<ResultDisplayRow  key={r.join(',')} values={r} />));
+
+  return (
+      <table className="ResultDisplay-table">
+        <tbody>
+          {rowElements}
+        </tbody>
+      </table>
+  );
+};
+
+const SingleCell = ({content}: {content: string}) => {
+  return (<ResultDisplayTable rows={[[content]]}/>)
+};
+
+interface ResultDisplayPropsType {
   result: Result,
 }
 
-const ResultDisplay = ({result}: PropsType) => {
+const ResultDisplay = ({result}: ResultDisplayPropsType) => {
   let content: JSX.Element;
 
   switch (result.resultType) {
     case 'none':
-      content = (<span />);
+      content = (<SingleCell content="" />);
       break;
     case 'boolean':
-      content = (<span>{result.value ? 'TRUE' : 'FALSE'}</span>);
+      content = (<SingleCell content={result.value ? 'TRUE' : 'FALSE'} />);
       break;
     case 'lambda':
-      content = (<span>{`λ (${result.freeVariables.join(', ')})`}</span>);
+      content = (<SingleCell content={`λ (${result.freeVariables.join(', ')})`} />);
       break;
     case 'list':
       const items = result.elements.map((res, i) => (
@@ -32,7 +74,7 @@ const ResultDisplay = ({result}: PropsType) => {
       );
       break;
     case 'number':
-      content = (<span>{result.value}</span>);
+      content = (<SingleCell content={`${result.value}`} />);
       break;
     case 'record':
       const propRows = result.properties.map(({name, value}) => (
@@ -51,7 +93,7 @@ const ResultDisplay = ({result}: PropsType) => {
       );
       break;
     case 'string':
-      content = (<span>{result.value}</span>);
+      content = (<SingleCell content={result.value} />);
       break;
     case 'error':
       content = (
