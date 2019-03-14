@@ -13,6 +13,10 @@
   padding: 2px 4px;
 }
 
+.Widget-varname_input {
+  width: 100%;
+}
+
 .Widget-formula_window {
   font-family: 'Courier New', Courier, monospace;
   background: #EABCAC;

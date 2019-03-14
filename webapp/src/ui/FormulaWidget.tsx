@@ -33,7 +33,8 @@ function isEndAction(e: React.KeyboardEvent) {
 
 // Not a static component to allow the input focus and click-outside.
 class FormulaWidget extends Component<PropsType, StateType> {
-  input: HTMLInputElement | null = null;
+  var_name_input: HTMLInputElement | null = null;
+  formula_input: HTMLInputElement | null = null;
   state = {
     editing: false,
     editingName: false,
@@ -51,7 +52,8 @@ class FormulaWidget extends Component<PropsType, StateType> {
   }
 
   focus() {
-    this.input && this.state.editing ? this.input.focus() : {}
+    this.formula_input && this.state.editing ? this.formula_input.focus() : {};
+    this.var_name_input && this.state.editingName ? this.var_name_input.focus() : {};
   }
 
   handleClickOutside() {
@@ -63,7 +65,9 @@ class FormulaWidget extends Component<PropsType, StateType> {
   }
 
   startEditingName() {
-    this.setState({editingName: true});
+    this.setState({editingName: true}, () => {
+      this.focus();
+    });
   }
 
   endEditingName() {
@@ -118,6 +122,8 @@ class FormulaWidget extends Component<PropsType, StateType> {
       nameDisplay = (
         <div className="Widget-var_name">
           <input
+            className="Widget-varname_input"
+            ref={(input) => {this.var_name_input = input}}
             onChange={(e) => this.handleNameInputChanged(e.target.value)}
             onKeyDown={e => isEndAction(e) ? this.endEditingName() : {}}
             onBlur={() => this.endEditingName()}
@@ -129,7 +135,7 @@ class FormulaWidget extends Component<PropsType, StateType> {
       valueDisplay = (
         <div className="Widget-formula_window">
           <input
-            ref={(input) => {this.input = input}}
+            ref={(input) => {this.formula_input = input}}
             className="Widget-formula_input"
             type="text"
             defaultValue={formula}

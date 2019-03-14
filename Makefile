@@ -144,6 +144,9 @@ restart-service:
 		--cluster "$$(cd ./infra && terraform output ecs_cluster_arn)" \
 		--service "$$(cd ./infra && terraform output web_service)" > /dev/null
 
+serve:
+	cd webapp && make serve
+
 test:
 	go test ./...
 
