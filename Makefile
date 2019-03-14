@@ -64,7 +64,7 @@ $(DOCKER_IMAGES)/api.tar.gz: docker/Dockerfile.api $(API_BUILD_LOCAL)
 	docker build -f docker/Dockerfile.api -t chalk-api .
 	docker save chalk-api:latest > $(DOCKER_IMAGES)/api.tar.gz
 
-$(DOCKER_IMAGES)/web.tar.gz: $(OUT_WEB_APP) docker/Dockerfile.web $(OUT_WEB) $(OUT_WEB_TEMPLATES)
+$(DOCKER_IMAGES)/web.tar.gz: $(WEBAPP_FILES) $(OUT_WEB_APP) docker/Dockerfile.web $(OUT_WEB) $(OUT_WEB_TEMPLATES)
 	echo 'Building $(DOCKER_IMAGES)/web.tar.gz...'
 	mkdir -p $(DOCKER_IMAGES)
 	docker build -f docker/Dockerfile.web -t chalk-web .
