@@ -30,3 +30,11 @@ resource "cloudflare_record" "web" {
   value   = "${var.web_dns}"
   proxied = true
 }
+
+resource "cloudflare_page_rule" "no_cache_idx_js" {
+  "actions" {
+    cache_level = "bypass"
+  }
+  target = "${var.cloudflare_zone}/static/index.*"
+  zone = "${var.cloudflare_zone}"
+}
